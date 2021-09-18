@@ -1,6 +1,7 @@
 package spoyogabot;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
@@ -53,7 +54,8 @@ public class Scheduler implements Runnable {
 				for(Map.Entry<LocalDateTime, ScheduledFuture<Boolean>> futureMessageEntry : messagesSent.entrySet()) {
 					if(futureMessageEntry.getValue().isDone()) {
                         messagesSent.remove(futureMessageEntry.getKey(), futureMessageEntry.getValue());
-						new File(dir + futureMessageEntry.getKey()).delete();
+						new File(dir + futureMessageEntry.getKey().toString().replace(":",".")).delete();
+						System.out.println(dir + futureMessageEntry.getKey().toString().replace(":",".") + " has deleted !");
 					}
 				}
 									
@@ -64,7 +66,7 @@ public class Scheduler implements Runnable {
 	}
 	public Set<LocalDateTime> getMessages() throws Exception{
 		return Arrays.stream(new File(dir).listFiles())
-                     .map(file -> LocalDateTime.parse(file.getName()))
+                     .map(file -> LocalDateTime.parse(file.getName().replace(".", ":")))
                      .sorted()
                      .collect(Collectors.toSet());
 	}

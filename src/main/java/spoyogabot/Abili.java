@@ -124,7 +124,7 @@ public class Abili extends AbilityBot {
             userSaid = update.getCallbackQuery().getData();
             chatId = update.getCallbackQuery().getMessage().getChatId().toString();
             if(userSaid.contains("delete_")) {
-                deleteMessage(chatId, userSaid.substring(7));
+                deleteMessage(chatId, userSaid.substring(7).replace(":","."));
             } else {
         		ArrayList<String> messagesQueue = (ArrayList<String>) getMessagesList();
         		try {
@@ -242,7 +242,7 @@ public class Abili extends AbilityBot {
     			+ "в " + messageFileName.toLocalTime() + "**";
     	keepDialog(message, chatId,answerText,false);
     	
-    	try(FileWriter fwr = new FileWriter(new File(dir+messageFileName.toString()))) {
+    	try(FileWriter fwr = new FileWriter(new File(dir+messageFileName.toString().replace(":", ".")))) {
         	fwr.append(savedMessage);
         	fwr.flush();
     	} catch (IOException ioe) {
@@ -263,14 +263,16 @@ public class Abili extends AbilityBot {
 		SendPhoto message = new SendPhoto();
    	
 		StringBuilder text2send = new StringBuilder();
-		text2send.append("Запланировано на *" + LocalDateTime.parse(message2show).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString() + "*" + System.lineSeparator());
+		text2send.append("Запланировано на *" + LocalDateTime.parse(message2show.replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString() + "*" + System.lineSeparator());
 		String photo_id = "";
-		Scanner scannedMessage = new Scanner(new File(dir + message2show)).useDelimiter("\\R");
-		photo_id = scannedMessage.next();
+		try(Scanner scannedMessage = new Scanner(new File(dir + message2show)).useDelimiter("\\R")) {
+		    photo_id = scannedMessage.next();
 
-		while(scannedMessage.hasNext())
-			text2send.append(scannedMessage.next() + System.lineSeparator());
-
+		    while(scannedMessage.hasNext())
+		    	text2send.append(scannedMessage.next() + System.lineSeparator());
+		} catch (Exception e) {
+		    e.printStackTrace();
+		}
 
     	message.setParseMode("MarkdownV2");
         message.setChatId(chatId);
@@ -297,7 +299,7 @@ public class Abili extends AbilityBot {
 
     	for(String mname : mNames) {
     		 InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
-    		 inlineKeyboardButton.setText(mname);
+    		 inlineKeyboardButton.setText(mname.replace(".", ":"));
     		 inlineKeyboardButton.setCallbackData(mname);
     		 List<InlineKeyboardButton> keyboardButtonsRow = new ArrayList<>();
     		 keyboardButtonsRow.add(inlineKeyboardButton);
@@ -312,8 +314,9 @@ public class Abili extends AbilityBot {
     	} catch (Exception e) {}
     }
     private void deleteMessage(String chatId, String message2delete) {
-    	new File(dir + File.separator + message2delete).delete();
+    	new File(dir + message2delete).delete();
     	keepDialog(new SendMessage(), chatId, "Сообщение не будет опубликовано \\- оно удалено \\!", true);
+		System.out.println(dir + message2delete + " has deleted !");
     	
     }
 	private String escapes(String str) {

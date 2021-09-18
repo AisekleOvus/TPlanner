@@ -33,7 +33,7 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
 	public Boolean call() {
 		StringBuilder text2send = new StringBuilder();
 		String photo_id = "";
-		try(Scanner scannedMessage = new Scanner(new File(dir + message2post.toString())).useDelimiter("\\R")) {
+		try(Scanner scannedMessage = new Scanner(new File(dir + message2post.toString().replace(":", "."))).useDelimiter("\\R")) {
 			photo_id = scannedMessage.next();
 			while(scannedMessage.hasNext())
 				text2send.append(scannedMessage.next() + System.lineSeparator());

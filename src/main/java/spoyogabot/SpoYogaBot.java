@@ -2,9 +2,11 @@ package spoyogabot;
 
 import java.util.Map;
 import java.util.HashMap;
-import java.util.Scanner;
+//import java.util.Scanner;
 
 import java.io.File;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.nio.file.Paths;
 
 import org.telegram.telegrambots.meta.TelegramBotsApi;
@@ -26,10 +28,11 @@ public class SpoYogaBot {
         }
     }
     private static Map<String, String> getParams() {
-    	String scanned = "";
+//    	String scanned = "";
+        String scanned = null;
     	HashMap<String, String> params = new HashMap<>();
-
-    	try(Scanner scanner = new Scanner(new File(getInstallDir() + "settings")).useDelimiter("\\R")) {
+//        System.out.println(getInstallDir() + "settings");
+/*    	try(Scanner scanner = new Scanner(new File(getInstallDir() + "settings")).useDelimiter("\\R")) {
     		while(scanner.hasNext()) {
     			scanned = scanner.next();
                 if(scanned.startsWith("\\") || scanned.startsWith("//") || scanned.startsWith("#") || scanned.startsWith(";")) continue;
@@ -51,9 +54,31 @@ public class SpoYogaBot {
     		}
     	}catch (Exception e) {
     		e.printStackTrace();
-    	}
-//    	params.forEach((k, v) -> System.out.println(k + " === " + v));
-    	System.out.println(getDir() + params.get("DIR"));
+    	}*/
+		try (BufferedReader br = new BufferedReader(new FileReader("settings"))) {
+		    while((scanned = br.readLine()) != null) {
+				if(scanned.startsWith("\\") || scanned.startsWith("//") || scanned.startsWith("#") || scanned.startsWith(";")) continue;
+                
+                if(scanned.contains("DIR"))
+                	params.put("DIR", scanned.substring(3).replace("=", "").trim());
+                if(scanned.contains("BOT_TOKEN"))
+                	params.put("BOT_TOKEN", scanned.substring(9).replace("=", "").trim());
+                if(scanned.contains("BOT_NAME"))
+                	params.put("BOT_NAME", scanned.substring(8).replace("=", "").trim());
+                if(scanned.contains("CHANEL_ID"))
+                	params.put("CHANEL_ID", scanned.substring(9).replace("=", "").trim());
+                if(scanned.contains("ADMINS_IDS"))
+                	params.put("ADMINS_IDS", scanned.substring(10).replace("=", "").trim());
+                if(scanned.contains("BOT_USERNAME"))
+                	params.put("BOT_USERNAME", scanned.substring(12).replace("=", "").trim());
+                if(scanned.contains("BOT_CREATOR_ID"))
+                	params.put("BOT_CREATOR_ID", scanned.substring(14).replace("=", "").trim());
+			}
+        } catch (Exception e) {
+	        e.printStackTrace();
+	    }
+ //   	params.forEach((k, v) -> System.out.println(k + " === " + v));
+//    	System.out.println(getDir() + params.get("DIR"));
     	return params;
     }
 	private static String getInstallDir() {
