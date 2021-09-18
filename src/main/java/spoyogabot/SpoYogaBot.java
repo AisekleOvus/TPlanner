@@ -57,18 +57,18 @@ public class SpoYogaBot {
     	return params;
     }
 	private static String getInstallDir() {
-    	try {
+/*    	try {
     		String installDir = Paths.get(SpoYogaBot.class        // These several strings of code help to understand where we are
     				           .getProtectionDomain()                   //
                                .getCodeSource()                         //
                                .getLocation()                           //
                                .getPath()).getParent().toString() + File.separator;//
     		System.out.println(installDir.replace(":", ""));
-    		return installDir/*.replace(":", "")*/;
+    		return installDir;
     	}catch (Exception e) {
     		e.printStackTrace();
-    	}
-    	return "";
+    	}*/
+    	return System.getProperty("user.dir");
     }
 	public static String getDir() {
 		return dir;
