@@ -68,7 +68,7 @@ public class SpoYogaBot {
     	}catch (Exception e) {
     		e.printStackTrace();
     	}*/
-    	return System.getProperty("user.dir");
+    	return System.getProperty("user.dir") + File.separator;
     }
 	public static String getDir() {
 		return dir;
