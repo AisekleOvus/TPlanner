@@ -20,6 +20,7 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -237,12 +238,13 @@ public class Abili extends AbilityBot {
     }
     private void saveMessage(User user, String chatId, String userSaid, String photo_id, boolean disableWebPagePreview) {
     	LocalDateTime messageFileName = LocalDateTime.of(messageDate, messageTime);
+    	System.out.println(savedMessage);
     	SendMessage message = new SendMessage();    	
 		String answerText = "**Ok**\nСообщение будет опубликовано\n" + "**" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
     			+ "в " + messageFileName.toLocalTime() + "**";
     	keepDialog(message, chatId,answerText,false);
     	
-    	try(FileWriter fwr = new FileWriter(new File(dir+messageFileName.toString().replace(":", ".")))) {
+    	try(FileWriter fwr = new FileWriter(new File(dir+messageFileName.toString().replace(":", ".")), StandardCharsets.UTF_8)) {
         	fwr.append(savedMessage);
         	fwr.flush();
     	} catch (IOException ioe) {
@@ -265,7 +267,7 @@ public class Abili extends AbilityBot {
 		StringBuilder text2send = new StringBuilder();
 		text2send.append("Запланировано на *" + LocalDateTime.parse(message2show.replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString() + "*" + System.lineSeparator());
 		String photo_id = "";
-		try(Scanner scannedMessage = new Scanner(new File(dir + message2show)).useDelimiter("\\R")) {
+		try(Scanner scannedMessage = new Scanner(new File(dir + message2show), "UTF-8").useDelimiter("\\R")) {
 		    photo_id = scannedMessage.next();
 
 		    while(scannedMessage.hasNext())
