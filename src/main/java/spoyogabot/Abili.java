@@ -148,6 +148,7 @@ public class Abili extends AbilityBot {
             		} else if("/start".equals(userSaid)) {
             		} else {
                 		keepMessage(userSaid);
+                		userSaidControll = userSaid;
                 		askDate(chatId);
             		}
             		
@@ -158,6 +159,7 @@ public class Abili extends AbilityBot {
             				.orElse(null)
             				.getFileId();
             		keepMessage(photo_id, userSaid);
+            		userSaidControll = userSaid;
             		askDate(chatId);
             		
             	}
@@ -168,9 +170,12 @@ public class Abili extends AbilityBot {
                 	if("Очередь публикации".equals(userSaid)) {
             			showPublicationQueue(chatId);
                 	} else {
-                		userSaidControll = userSaid;
-            			if(checkDate(userSaid, chatId))
-            				askTime(chatId);
+                		System.out.println(userSaid + " == " + userSaidControll);
+                		if(!userSaid.equals(userSaidControll)) {
+                    		userSaidControll = userSaid;
+                			if(checkDate(userSaid, chatId))
+                				askTime(chatId);
+                		}
             		}
         		}
         	}
@@ -196,7 +201,7 @@ public class Abili extends AbilityBot {
     	keepMessage("", userSaid);
     }
     private void keepMessage(String photo_id, String userSaid) {
-    	savedMessage = !"".equals(photo_id)? photo_id + System.lineSeparator() + userSaid : photo_id + userSaid;
+    	savedMessage = !"".equals(photo_id)? photo_id + System.lineSeparator() + userSaid : "no_photo" + System.lineSeparator() + userSaid;
     }
     private void askDate(String chatId) {
     	SendMessage message = new SendMessage();
@@ -261,8 +266,6 @@ public class Abili extends AbilityBot {
 		keyboardButtonsRow.add(inlineKeyboardButton);
 		rowList.add(keyboardButtonsRow);
     	inlineKeyboardMarkup.setKeyboard(rowList);
-    	
-		SendPhoto message = new SendPhoto();
    	
 		StringBuilder text2send = new StringBuilder();
 		text2send.append("Запланировано на *" + LocalDateTime.parse(message2show.replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString() + "*" + System.lineSeparator());
@@ -275,13 +278,23 @@ public class Abili extends AbilityBot {
 		} catch (Exception e) {
 		    e.printStackTrace();
 		}
+        if("no_photo".equals(photo_id)) {
+        	SendMessage message = new SendMessage();
+        	message.setParseMode("MarkdownV2");
+            message.setChatId(chatId);
+            message.setText(escapes(text2send.toString()));
+        	message.setReplyMarkup(inlineKeyboardMarkup);
+            execute(message);
 
-    	message.setParseMode("MarkdownV2");
-        message.setChatId(chatId);
-		message.setPhoto(new InputFile(photo_id));
-        message.setCaption(escapes(text2send.toString()));
-    	message.setReplyMarkup(inlineKeyboardMarkup);
-        execute(message);
+        } else {
+    		SendPhoto message = new SendPhoto();
+        	message.setParseMode("MarkdownV2");
+            message.setChatId(chatId);
+    	    message.setPhoto(new InputFile(photo_id));
+            message.setCaption(escapes(text2send.toString()));
+        	message.setReplyMarkup(inlineKeyboardMarkup);
+            execute(message);
+        }
     }
     public List<String> getMessagesList() {
     	List<String> mNames = new ArrayList<>();
@@ -322,23 +335,24 @@ public class Abili extends AbilityBot {
     	
     }
 	private String escapes(String str) {
-    	return 	str.replace(".", "\\.")
-		           .replace("#", "\\#")
-		           .replace("!", "\\!")
-		           .replace("{", "\\{")
-		           .replace("}", "\\}")
-		           .replace("=", "\\=")
-		           .replace("|", "\\|")
-		           .replace("-","\\-")
-                   .replace("(","\\(")
-                   .replace("[","\\[")
-                   .replace(")","\\)")
-                   .replace("]","\\]")
-                   .replace("~","\\~")
-                   .replace("`","\\`")
-                   .replace(">","\\>")
-                   .replace("+","\\+")
-                   .replace("!","\\!")
+		byte esc = 92;
+		char escape = (char) esc;
+    	return 	str.replace(".", escape + ".")
+		           .replace("#", escape + "#")
+		           .replace("!", escape + "!")
+		           .replace("{", escape + "{")
+		           .replace("}", escape + "}")
+		           .replace("=", escape + "=")
+		           .replace("|", escape + "|")
+		           .replace("-", escape + "-")
+                   .replace("(", escape + "(")
+                   .replace("[", escape + "[")
+                   .replace(")", escape + ")")
+                   .replace("]", escape + "]")
+                   .replace("~", escape + "~")
+                   .replace("`", escape + "`")
+                   .replace(">", escape + ">")
+                   .replace("+", escape + "+")
     	           ;
 	}
 	@Override

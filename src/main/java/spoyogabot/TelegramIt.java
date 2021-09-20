@@ -44,13 +44,22 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
 		return sendPhoto2channel(text2send.toString(), photo_id);
 	}
     public boolean sendPhoto2channel(String text, String photo_id) {
-		SendPhoto message = new SendPhoto();
-    	message.setParseMode("MarkdownV2");
-        message.setChatId(chatId);
     	try {
-    		message.setPhoto(new InputFile(photo_id));
-            message.setCaption(escapes(text));
-           	return execute(message).getMessageId() >= 0;
+            if("no_photo".equals(photo_id)) {
+            	SendMessage message = new SendMessage();
+            	message.setParseMode("MarkdownV2");
+                message.setChatId(chatId);
+                message.setText(escapes(text));
+            	return execute(message).getMessageId() >= 0;
+
+            } else {
+        		SendPhoto message = new SendPhoto();
+            	message.setParseMode("MarkdownV2");
+                message.setChatId(chatId);
+        		message.setPhoto(new InputFile(photo_id));
+                message.setCaption(escapes(text));
+               	return execute(message).getMessageId() >= 0;
+            }
     	} catch (Exception e) {
     		e.printStackTrace();
     	}
@@ -70,25 +79,24 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
         return botToken;
     }
 	private String escapes(String str) {
-    	return 	str.replace(".", "\\.")
-		           .replace("#", "\\#")
-		           .replace("!", "\\!")
-		           .replace("{", "\\{")
-		           .replace("}", "\\}")
-		           .replace("=", "\\=")
-		           .replace("|", "\\|")
-		           .replace("-","\\-")
-                   .replace("(","\\(")
-                   .replace("[","\\[")
-                   .replace(")","\\)")
-                   .replace("]","\\]")
-//                 .replace("*","\\*")
-                   .replace("~","\\~")
-                   .replace("`","\\`")
-                   .replace(">","\\>")
-                   .replace("+","\\+")
-//    	           .replace("_","\\_")
-//    	           .replace("\\_\\_","__")
+		byte esc = 92;
+		char escape = (char) esc;
+    	return 	str.replace(".", escape + ".")
+		           .replace("#", escape + "#")
+		           .replace("!", escape + "!")
+		           .replace("{", escape + "{")
+		           .replace("}", escape + "}")
+		           .replace("=", escape + "=")
+		           .replace("|", escape + "|")
+		           .replace("-", escape + "-")
+                   .replace("(", escape + "(")
+                   .replace("[", escape + "[")
+                   .replace(")", escape + ")")
+                   .replace("]", escape + "]")
+                   .replace("~", escape + "~")
+                   .replace("`", escape + "`")
+                   .replace(">", escape + ">")
+                   .replace("+", escape + "+")
     	           ;
 	}
 }
