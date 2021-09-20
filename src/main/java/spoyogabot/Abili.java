@@ -201,7 +201,7 @@ public class Abili extends AbilityBot {
     	keepMessage("", userSaid);
     }
     private void keepMessage(String photo_id, String userSaid) {
-    	savedMessage = !"".equals(photo_id)? photo_id + System.lineSeparator() + userSaid : "no_photo" + System.lineSeparator() + userSaid;
+    	savedMessage = !"".equals(photo_id)? photo_id + System.lineSeparator() + (userSaid != null ? userSaid : "" ): "no_photo" + System.lineSeparator() + (userSaid != null ? userSaid : "");
     }
     private void askDate(String chatId) {
     	SendMessage message = new SendMessage();
@@ -243,7 +243,7 @@ public class Abili extends AbilityBot {
     }
     private void saveMessage(User user, String chatId, String userSaid, String photo_id, boolean disableWebPagePreview) {
     	LocalDateTime messageFileName = LocalDateTime.of(messageDate, messageTime);
-    	System.out.println(savedMessage);
+//    	System.out.println(savedMessage);
     	SendMessage message = new SendMessage();    	
 		String answerText = "**Ok**\nСообщение будет опубликовано\n" + "**" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
     			+ "в " + messageFileName.toLocalTime() + "**";
