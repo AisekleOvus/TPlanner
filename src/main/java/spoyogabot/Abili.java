@@ -48,17 +48,22 @@ import org.telegram.telegrambots.meta.api.methods.send.SendChatAction;
 import org.telegram.telegrambots.meta.api.methods.ActionType;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-
+import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
+import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
+import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 
 public class Abili extends AbilityBot {
 
 	private String dir;
 
+	private SimpleMessage savedMessage;
 	private int lastMessageId;
 	private int step;
 	private LocalDate messageDate;
 	private LocalTime messageTime;
-	private String savedMessage;
+//	private String savedMessage;
 	private String userSaidControll;
 	private List<Integer> messages;
 	private String admins;
@@ -73,7 +78,7 @@ public class Abili extends AbilityBot {
 		this.creatorId = params.get("BOT_CREATOR_ID");
 		messages = new ArrayList<>();
 		step = 1;
-		savedMessage = "";
+//		savedMessage = "";
 		replyKeyboardMarkup = new ReplyKeyboardMarkup();
         replyKeyboardMarkup.setSelective(true);
         replyKeyboardMarkup.setResizeKeyboard(true);
@@ -117,9 +122,10 @@ public class Abili extends AbilityBot {
     @Override
     public void onUpdateReceived(Update update) {
     	User user = null;
-    	String userSaid = "";
-    	String chatId = "";
-    	String photo_id = "";
+    	String userSaid = null;
+    	String chatId = null;
+    	String photo_id = null;
+    	String video_id = null;
         
     	if(update.hasCallbackQuery()) {
             userSaid = update.getCallbackQuery().getData();
@@ -138,72 +144,84 @@ public class Abili extends AbilityBot {
     	}
 
         if (update.hasMessage() && admins.contains("@" + update.getMessage().getFrom().getUserName())){
- 		
-        	chatId = update.getMessage().getChatId().toString();
-        	if(step == 1) {
-            	if (update.getMessage().hasText()) {
-            		userSaid = update.getMessage().getText();
-            		if("Очередь публикации".equals(userSaid)) {
-            			showPublicationQueue(chatId);
-            		} else if("/start".equals(userSaid)) {
-            		} else {
-                		keepMessage(userSaid);
-                		userSaidControll = userSaid;
-                		askDate(chatId);
-            		}
-            		
-            	}else if (update.getMessage().hasPhoto()) {
-            		userSaid = update.getMessage().getCaption();
-            		photo_id = update.getMessage().getPhoto().stream()
-            				.findFirst()
-            				.orElse(null)
-            				.getFileId();
-            		keepMessage(photo_id, userSaid);
-            		userSaidControll = userSaid;
-            		askDate(chatId);
-            		
+            Message recivedMessage = update.getMessage();
+            chatId = recivedMessage.getChatId().toString();
+            
+            
+            if("/start".equals(recivedMessage.getText())) {
+            } 
+            else if ("Очередь публикации".equals(recivedMessage.getText())) {
+            	showPublicationQueue(chatId);
+            } else if (recivedMessage.hasText()) {
+            	userSaid = recivedMessage.getText(); 
+//            	System.out.println("Получено тексовое сообщение: " + System.lineSeparator() + userSaid);
+            }
+            
+            if(recivedMessage.hasPhoto()) {
+        		userSaid = update.getMessage().getCaption();
+        		photo_id = update.getMessage().getPhoto().stream()
+        				.findFirst()
+        				.orElse(null)
+        				.getFileId();
+ //           	System.out.println("Получено сообщение с фото: "+ System.lineSeparator() + photo_id + System.lineSeparator() + userSaid);
+            }
+            if(recivedMessage.hasVideo()) {
+        		userSaid = update.getMessage().getCaption();
+        		video_id = update.getMessage().getVideo().getFileId();
+        		
+ //           	System.out.println("Получено сообщение с видео: "+ System.lineSeparator() + video_id + System.lineSeparator() + userSaid);
+            }
+            if(savedMessage == null && userSaid != null) {
+            	savedMessage = new SimpleMessage();
+
+ //           	System.out.println("Сохраняем текст");
+            	savedMessage.setText(userSaid);
+            	if(photo_id != null) {
+ //           		System.out.println("Сохраняем фото");
+            		savedMessage.setMediaFileId(photo_id, "photo");
             	}
-        	}
-        	if(step == 2) {
-        		if (update.getMessage().hasText()) {
-                	userSaid = update.getMessage().getText();
-                	if("Очередь публикации".equals(userSaid)) {
-            			showPublicationQueue(chatId);
-                	} else {
-                		System.out.println(userSaid + " == " + userSaidControll);
-                		if(!userSaid.equals(userSaidControll)) {
-                    		userSaidControll = userSaid;
-                			if(checkDate(userSaid, chatId))
-                				askTime(chatId);
-                		}
-            		}
-        		}
-        	}
-        	if(step == 3) {
-        		if (update.getMessage().hasText()) {
-            		userSaid = update.getMessage().getText();
-                	if("Очередь публикации".equals(userSaid)) {
-            			showPublicationQueue(chatId);
-                	} else {
-                		if(!userSaid.equals(userSaidControll)) {
-                			if(checkTime(userSaid, chatId)) {
-                				saveMessage(user, chatId, userSaid, photo_id, false);
-                				step = 1;
-                				userSaidControll = null;
-                			}      				
-                		}
-                	}
-        		}
-        	}
+            	if(video_id != null) {
+    //        		System.out.println("Сохраняем видео");
+            		savedMessage.setMediaFileId(video_id, "video");
+            	}
+            	if(recivedMessage.getMediaGroupId() != null) {
+ //           		System.out.println("Media Group detected : " + recivedMessage.getMediaGroupId());
+            		savedMessage.setMediaGroupId(recivedMessage.getMediaGroupId());
+            	}
+            	    askDate(chatId);
+            } 
+            else if(savedMessage != null && update.getMessage().getCaption() == null) {
+            	// Если ID медиагруппы, полученного сообщения совпадает с сохраненным, значит идет передача медиагруппы и нужно добавить
+            	if(savedMessage.getMediaGroupId() != null && savedMessage.getMediaGroupId().equals(recivedMessage.getMediaGroupId())) {
+                	if(photo_id != null)
+                		savedMessage.setMediaFileId(photo_id, "photo");
+
+                	if(video_id != null)
+                		savedMessage.setMediaFileId(video_id, "video");
+
+            	}
+            	else if(savedMessage.dateIsEmpty() && checkDate(userSaid, chatId)) {
+            	    savedMessage.setDate(messageDate);
+            	    askTime(chatId);
+            	}
+            	else if(savedMessage.timeIsEmpty() && checkTime(userSaid, chatId)) {
+            	    savedMessage.setTime(messageTime);
+            	    saveMessage(chatId);
+            	}
+            }
         }
      }
-    private void keepMessage(String userSaid) {
-    	keepMessage("", userSaid);
-    }
-    private void keepMessage(String photo_id, String userSaid) {
-    	savedMessage = !"".equals(photo_id)? photo_id + System.lineSeparator() + (userSaid != null ? userSaid : "" ): "no_photo" + System.lineSeparator() + (userSaid != null ? userSaid : "");
-    }
+    
     private void askDate(String chatId) {
+
+    	if(!savedMessage.mediaGroupIdIsEmpty()) {
+        	SendMessage message = new SendMessage();
+        	message.setParseMode("MarkdownV2");
+        	String text = "К сожалению Telegram, пока не разрешает ботам отправлять в чаты Медиа-Альбомы с полноценным форматированием, ваши" 
+        			      + " медиафайлы будут отправлены одним сообщением, а текст будет отправлен следом отдельным сообщением\\.";
+
+        	keepDialog(message, chatId, text, false);
+    	}
     	SendMessage message = new SendMessage();
     	message.setParseMode("MarkdownV2");
     	String text = "Введите дату публикации\\(дд\\.мм\\.гггг\\)";
@@ -227,6 +245,7 @@ public class Abili extends AbilityBot {
     		keepDialog(message, chatId, text, false);
     		return false;
     	}
+	
     	return true;
     }
     private boolean checkTime(String time, String chatId) {
@@ -241,22 +260,28 @@ public class Abili extends AbilityBot {
     	}
     	return true;
     }
-    private void saveMessage(User user, String chatId, String userSaid, String photo_id, boolean disableWebPagePreview) {
-    	LocalDateTime messageFileName = LocalDateTime.of(messageDate, messageTime);
-//    	System.out.println(savedMessage);
+    private void saveMessage(String chatId) {
+    	LocalDateTime messageFileName = LocalDateTime.of(savedMessage.getDate(), savedMessage.getTime());
+
     	SendMessage message = new SendMessage();    	
 		String answerText = "**Ok**\nСообщение будет опубликовано\n" + "**" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
     			+ "в " + messageFileName.toLocalTime() + "**";
-    	keepDialog(message, chatId,answerText,false);
-    	
+    	keepDialog(message, chatId, answerText,false);
+    
     	try(FileWriter fwr = new FileWriter(new File(dir+messageFileName.toString().replace(":", ".")), StandardCharsets.UTF_8)) {
-        	fwr.append(savedMessage);
+        	fwr.append(savedMessage.toString());
         	fwr.flush();
     	} catch (IOException ioe) {
     		ioe.printStackTrace();
+    	} finally {
+    	    savedMessage = null;
     	}
     }
     public void showTheMessage(String chatId, String message2show) throws Exception {
+    	int photosAllTogather = 0;
+    	int videosAllTogather = 0;
+    	List<String> photoList = new ArrayList<>();
+    	List<String> videoList = new ArrayList<>();
     	InlineKeyboardMarkup inlineKeyboardMarkup =new InlineKeyboardMarkup();
     	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
 		InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
@@ -271,14 +296,27 @@ public class Abili extends AbilityBot {
 		text2send.append("Запланировано на *" + LocalDateTime.parse(message2show.replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString() + "*" + System.lineSeparator());
 		String photo_id = "";
 		try(Scanner scannedMessage = new Scanner(new File(dir + message2show), "UTF-8").useDelimiter("\\R")) {
-		    photo_id = scannedMessage.next();
-
-		    while(scannedMessage.hasNext())
-		    	text2send.append(scannedMessage.next() + System.lineSeparator());
+			while(scannedMessage.hasNext()) {
+				String nextStr = scannedMessage.next();
+				
+				if(nextStr.contains("photo =")) {
+					photoList.add(nextStr.substring(8));
+//				    System.out.println(nextStr.substring(8));
+			    }			
+				else if(nextStr.contains("video =")) {
+					videoList.add(nextStr.substring(8));
+//					System.out.println(nextStr.substring(8));
+				}
+				
+				else
+		    	    text2send.append(nextStr + System.lineSeparator());
+			}
 		} catch (Exception e) {
 		    e.printStackTrace();
 		}
-        if("no_photo".equals(photo_id)) {
+		photosAllTogather = photoList.size();
+		videosAllTogather = videoList.size();
+        if((photosAllTogather + videosAllTogather) == 0) {
         	SendMessage message = new SendMessage();
         	message.setParseMode("MarkdownV2");
             message.setChatId(chatId);
@@ -286,14 +324,56 @@ public class Abili extends AbilityBot {
         	message.setReplyMarkup(inlineKeyboardMarkup);
             execute(message);
 
-        } else {
+        } else if(photosAllTogather < 2 && videosAllTogather == 0){
     		SendPhoto message = new SendPhoto();
         	message.setParseMode("MarkdownV2");
             message.setChatId(chatId);
-    	    message.setPhoto(new InputFile(photo_id));
+    	    message.setPhoto(new InputFile(photoList.get(0)));
             message.setCaption(escapes(text2send.toString()));
         	message.setReplyMarkup(inlineKeyboardMarkup);
             execute(message);
+        } else if(videosAllTogather < 2 && photosAllTogather == 0){
+    		SendVideo message = new SendVideo();
+        	message.setParseMode("MarkdownV2");
+            message.setChatId(chatId);
+    	    message.setVideo(new InputFile(videoList.get(0)));
+            message.setCaption(escapes(text2send.toString()));
+        	message.setReplyMarkup(inlineKeyboardMarkup);
+            execute(message);
+        } else if ((photosAllTogather + videosAllTogather) > 1) {
+
+        	List<InputMedia> medias = new ArrayList<>();
+        	
+//        	for(String photoId : photoList) {
+        	for(int i = 0; i < photoList.size(); i++) {
+ //       		System.out.println("Extract photoId: " + photoId);
+            	InputMedia media = (InputMedia) new InputMediaPhoto();
+/*            	if(i == 0)
+            	    media.setCaption(escapes(text2send.toString()));*/
+            	media.setMedia(photoList.get(i));
+            	medias.add(media);
+        	}
+//        	for(String videoId : videoList) {
+        	for(int i = 0; i < videoList.size(); i++) {
+//        		System.out.println("Extract videoId: " + videoList.get(i));
+            	InputMedia media = (InputMedia) new InputMediaVideo();
+/*            	if(i == 0)
+            	    media.setCaption(escapes(text2send.toString()));*/
+            	media.setMedia(videoList.get(i));
+            	medias.add(media);
+        	}
+        	
+            SendMediaGroup message = new SendMediaGroup();
+            message.setChatId(chatId);
+            message.setMedias(medias);
+            execute(message);
+            
+        	SendMessage apendix = new SendMessage();
+        	apendix.setParseMode("MarkdownV2");
+        	apendix.setChatId(chatId);
+        	apendix.setText(escapes(text2send.toString()));
+        	apendix.setReplyMarkup(inlineKeyboardMarkup);
+            execute(apendix);
         }
     }
     public List<String> getMessagesList() {
@@ -331,7 +411,7 @@ public class Abili extends AbilityBot {
     private void deleteMessage(String chatId, String message2delete) {
     	new File(dir + message2delete).delete();
     	keepDialog(new SendMessage(), chatId, "Сообщение не будет опубликовано \\- оно удалено \\!", true);
-		System.out.println(dir + message2delete + " has deleted !");
+//		System.out.println(dir + message2delete + " has deleted !");
     	
     }
 	private String escapes(String str) {
