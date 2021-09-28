@@ -1,20 +1,26 @@
 package spoyogabot;
 
 import java.util.List;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.time.LocalDate;
 import java.time.LocalTime;
+
+import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 
 public class SimpleMessage {
 	private LocalDate messageDate;
 	private LocalTime messageTime;
 	private String text;
 	private Map<String, String> mediaFileId;
+	private List<MessageEntity> mEntities;
 	private String mediaGroupId;
 	
 	public SimpleMessage() {
-		mediaFileId = new HashMap<>();
+		mediaFileId = new LinkedHashMap<>();
+		mEntities = new LinkedList<>();
 	}
 
 //  IS EMPTY
@@ -33,6 +39,9 @@ public class SimpleMessage {
 	public boolean mediaGroupIdIsEmpty() {
 		return mediaGroupId == null;
 	}
+	public boolean messageEntitiesIsEmpty() {
+		return mEntities.isEmpty();
+	}
 //  GETTERS
 	public LocalDate getDate() {
 		return messageDate;
@@ -48,6 +57,9 @@ public class SimpleMessage {
 	}
 	public String getMediaGroupId() {
 		return mediaGroupId;
+	}
+	public List<MessageEntity> getMessageEntities() {
+		return mEntities;
 	}
 //  SETTERS
 	public void setDate(LocalDate messageDate) {
@@ -67,12 +79,19 @@ public class SimpleMessage {
 	public void setMediaGroupId(String mediaGroupId) {
 		this.mediaGroupId = mediaGroupId;
 	}
+	
+	public void setMessageEntities(List<MessageEntity> mEntities) {
+		if(mEntities.isEmpty())
+		    this.mEntities = mEntities;
+	}
+	
     public void resetMessage() {
     	messageDate = null;
     	messageTime = null;
     	text = null;
     	mediaFileId = null;
     	mediaGroupId = null;
+    	mEntities.clear();
     }
     @Override
     public String toString() {

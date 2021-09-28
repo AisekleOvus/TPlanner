@@ -1,5 +1,6 @@
 package spoyogabot;
 
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.List;
 import java.util.ArrayList;
@@ -7,6 +8,7 @@ import java.util.Set;
 import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.Scanner;
@@ -53,6 +55,7 @@ import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
+import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 
 public class Abili extends AbilityBot {
 
@@ -63,7 +66,6 @@ public class Abili extends AbilityBot {
 	private int step;
 	private LocalDate messageDate;
 	private LocalTime messageTime;
-//	private String savedMessage;
 	private String userSaidControll;
 	private List<Integer> messages;
 	private String admins;
@@ -77,8 +79,6 @@ public class Abili extends AbilityBot {
 		this.admins = params.get("ADMINS_IDS");
 		this.creatorId = params.get("BOT_CREATOR_ID");
 		messages = new ArrayList<>();
-		step = 1;
-//		savedMessage = "";
 		replyKeyboardMarkup = new ReplyKeyboardMarkup();
         replyKeyboardMarkup.setSelective(true);
         replyKeyboardMarkup.setResizeKeyboard(true);
@@ -144,6 +144,7 @@ public class Abili extends AbilityBot {
     	}
 
         if (update.hasMessage() && admins.contains("@" + update.getMessage().getFrom().getUserName())){
+        	List<MessageEntity> mEntities = null;
             Message recivedMessage = update.getMessage();
             chatId = recivedMessage.getChatId().toString();
             
@@ -153,58 +154,70 @@ public class Abili extends AbilityBot {
             else if ("Очередь публикации".equals(recivedMessage.getText())) {
             	showPublicationQueue(chatId);
             } else if (recivedMessage.hasText()) {
+            	System.out.println("Получено тексовое сообщение: " + System.lineSeparator() + userSaid);
             	userSaid = recivedMessage.getText(); 
-//            	System.out.println("Получено тексовое сообщение: " + System.lineSeparator() + userSaid);
+            	mEntities = recivedMessage.getEntities();
             }
             
             if(recivedMessage.hasPhoto()) {
-        		userSaid = update.getMessage().getCaption();
+        		userSaid = recivedMessage.getCaption();
+        		mEntities = recivedMessage.getCaptionEntities();
         		photo_id = update.getMessage().getPhoto().stream()
         				.findFirst()
         				.orElse(null)
         				.getFileId();
- //           	System.out.println("Получено сообщение с фото: "+ System.lineSeparator() + photo_id + System.lineSeparator() + userSaid);
+        		 System.out.println("Получено сообщение с фото: "+ System.lineSeparator() + photo_id + System.lineSeparator() + userSaid);        		
             }
             if(recivedMessage.hasVideo()) {
-        		userSaid = update.getMessage().getCaption();
+        		userSaid = recivedMessage.getCaption();
+        		mEntities = recivedMessage.getCaptionEntities();
         		video_id = update.getMessage().getVideo().getFileId();
+                System.out.println("Получено сообщение с видео: "+ System.lineSeparator() + video_id + System.lineSeparator() + userSaid);
         		
- //           	System.out.println("Получено сообщение с видео: "+ System.lineSeparator() + video_id + System.lineSeparator() + userSaid);
             }
+
             if(savedMessage == null && userSaid != null) {
             	savedMessage = new SimpleMessage();
+            	
+            	System.out.println("Сохраняем текст");
 
- //           	System.out.println("Сохраняем текст");
-            	savedMessage.setText(userSaid);
+            	savedMessage.setText(texter(userSaid, mEntities));
             	if(photo_id != null) {
- //           		System.out.println("Сохраняем фото");
+                    System.out.println("Сохраняем фото");            		
             		savedMessage.setMediaFileId(photo_id, "photo");
             	}
             	if(video_id != null) {
-    //        		System.out.println("Сохраняем видео");
+            		System.out.println("Сохраняем видео");
             		savedMessage.setMediaFileId(video_id, "video");
             	}
             	if(recivedMessage.getMediaGroupId() != null) {
- //           		System.out.println("Media Group detected : " + recivedMessage.getMediaGroupId());
+            		System.out.println("Mediagroup " + recivedMessage.getMediaGroupId() + " has detected !");
             		savedMessage.setMediaGroupId(recivedMessage.getMediaGroupId());
             	}
+            	
             	    askDate(chatId);
             } 
             else if(savedMessage != null && update.getMessage().getCaption() == null) {
             	// Если ID медиагруппы, полученного сообщения совпадает с сохраненным, значит идет передача медиагруппы и нужно добавить
             	if(savedMessage.getMediaGroupId() != null && savedMessage.getMediaGroupId().equals(recivedMessage.getMediaGroupId())) {
-                	if(photo_id != null)
+                	if(photo_id != null) {
                 		savedMessage.setMediaFileId(photo_id, "photo");
+                		System.out.println("Добавили фото в медиагруппу");
+                		System.out.println("Теперь в медиагруппе " + savedMessage.getGetMedia().size());
+                	}
 
-                	if(video_id != null)
+                	if(video_id != null) {
                 		savedMessage.setMediaFileId(video_id, "video");
+                		System.out.println("Добавили видео в медиагруппу");
+                		System.out.println("Теперь в медиагруппе " + savedMessage.getGetMedia().size());
+                	}
 
             	}
             	else if(savedMessage.dateIsEmpty() && checkDate(userSaid, chatId)) {
             	    savedMessage.setDate(messageDate);
             	    askTime(chatId);
             	}
-            	else if(savedMessage.timeIsEmpty() && checkTime(userSaid, chatId)) {
+            	else if(!savedMessage.dateIsEmpty() && savedMessage.timeIsEmpty() && checkTime(userSaid, chatId)) {
             	    savedMessage.setTime(messageTime);
             	    saveMessage(chatId);
             	}
@@ -217,8 +230,10 @@ public class Abili extends AbilityBot {
     	if(!savedMessage.mediaGroupIdIsEmpty()) {
         	SendMessage message = new SendMessage();
         	message.setParseMode("MarkdownV2");
-        	String text = "К сожалению Telegram, пока не разрешает ботам отправлять в чаты Медиа-Альбомы с полноценным форматированием, ваши" 
-        			      + " медиафайлы будут отправлены одним сообщением, а текст будет отправлен следом отдельным сообщением\\.";
+        	String text = "К сожалению Telegram, пока не разрешает ботам отправлять в чаты Медиа\\-Альбомы с полноценным форматированием, ваши" 
+        			      + " медиафайлы будут отправлены одним сообщением, а текст будет отправлен следом отдельным сообщением\\. Вы можете соз"
+        			      + "дать сообщение и сохранить его для отложенной публикации, а, затем, перейти в очередь публикации, и выбрав его, посмотреть, "
+        			      + "как оно будет выглядеть при отправке\\.";
 
         	keepDialog(message, chatId, text, false);
     	}
@@ -301,11 +316,9 @@ public class Abili extends AbilityBot {
 				
 				if(nextStr.contains("photo =")) {
 					photoList.add(nextStr.substring(8));
-//				    System.out.println(nextStr.substring(8));
 			    }			
 				else if(nextStr.contains("video =")) {
 					videoList.add(nextStr.substring(8));
-//					System.out.println(nextStr.substring(8));
 				}
 				
 				else
@@ -344,18 +357,14 @@ public class Abili extends AbilityBot {
 
         	List<InputMedia> medias = new ArrayList<>();
         	
-//        	for(String photoId : photoList) {
         	for(int i = 0; i < photoList.size(); i++) {
- //       		System.out.println("Extract photoId: " + photoId);
             	InputMedia media = (InputMedia) new InputMediaPhoto();
 /*            	if(i == 0)
             	    media.setCaption(escapes(text2send.toString()));*/
             	media.setMedia(photoList.get(i));
             	medias.add(media);
         	}
-//        	for(String videoId : videoList) {
         	for(int i = 0; i < videoList.size(); i++) {
-//        		System.out.println("Extract videoId: " + videoList.get(i));
             	InputMedia media = (InputMedia) new InputMediaVideo();
 /*            	if(i == 0)
             	    media.setCaption(escapes(text2send.toString()));*/
@@ -411,8 +420,54 @@ public class Abili extends AbilityBot {
     private void deleteMessage(String chatId, String message2delete) {
     	new File(dir + message2delete).delete();
     	keepDialog(new SendMessage(), chatId, "Сообщение не будет опубликовано \\- оно удалено \\!", true);
-//		System.out.println(dir + message2delete + " has deleted !");
     	
+    }
+    private String texter(String userSaid, List<MessageEntity> entities) {
+    	Map<Integer, String> offsets = null;
+    	StringBuilder usb = new StringBuilder(userSaid);
+    	Map<String, String> simpleEn = new HashMap<>();
+    	simpleEn.put("bold", "*");
+    	simpleEn.put("italic", "_");
+    	simpleEn.put("code", "```");
+    	simpleEn.put("pre", "```");
+    	simpleEn.put("underline", "__");
+    	simpleEn.put("strikethrough", "~");
+
+    	if( entities != null ) {
+
+    		offsets = entities.stream()
+    				  .filter(en -> simpleEn.containsKey(en.getType()))
+    				  .collect(TreeMap::new, 
+    						  (hm, en) -> { 
+     	    					 hm.computeIfPresent(en.getOffset(),  (k, v) -> 
+     	    					 {
+     	    					     return v.contains("_") && simpleEn.get(en.getType()).contains("_")
+     	    					    		                ? v + (new Character('\u00AD').toString()) + simpleEn.get(en.getType())
+     	    					    		                : v + simpleEn.get(en.getType())
+     	    					 ;});
+     	    					 hm.computeIfPresent(en.getOffset() + en.getLength(), (k, v) -> 
+     	    					 {
+     	    					     return v.contains("_") && simpleEn.get(en.getType()).contains("_")
+     	    					    		                ? simpleEn.get(en.getType()) + (new Character('\u00AD').toString()) + v
+     	    					    		                : simpleEn.get(en.getType()) + v
+     	    					 ;});
+    	    					 hm.putIfAbsent(en.getOffset(), simpleEn.get(en.getType()));
+    	    					 hm.putIfAbsent(en.getOffset() + en.getLength(), simpleEn.get(en.getType())); 
+    	    				  },
+    						  TreeMap::putAll
+    				  );
+    		int plusSize = 0;
+    		for(Map.Entry<Integer, String> offEntry: offsets.entrySet()) {
+    			usb.insert(offEntry.getKey() + plusSize, offEntry.getValue());
+    		    plusSize += offEntry.getValue().length();	
+    		}
+    		System.out.println(usb.toString());
+    		return usb.toString();
+    				
+    	} else {
+    		System.out.println("No entities");
+    	    return userSaid;
+    	}
     }
 	private String escapes(String str) {
 		byte esc = 92;
