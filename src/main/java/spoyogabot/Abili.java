@@ -63,7 +63,7 @@ public class Abili extends AbilityBot {
 
 	private SimpleMessage savedMessage;
 	private int lastMessageId;
-	private int step;
+	private String step;
 	private LocalDate messageDate;
 	private LocalTime messageTime;
 	private String userSaidControll;
@@ -126,13 +126,27 @@ public class Abili extends AbilityBot {
     	String chatId = null;
     	String photo_id = null;
     	String video_id = null;
-        
+    	
     	if(update.hasCallbackQuery()) {
             userSaid = update.getCallbackQuery().getData();
             chatId = update.getCallbackQuery().getMessage().getChatId().toString();
             if(userSaid.contains("delete_")) {
                 deleteMessage(chatId, userSaid.substring(7).replace(":","."));
-            } else {
+            } 
+            else if(userSaid.contains("pub_later")) {
+            	step = "askDate";
+            	askDate(chatId);
+
+    	    }
+            else if(userSaid.contains("setDate_")) {
+            	System.out.println("date is " + userSaid.substring(8));
+            	checkDate(userSaid.substring(8), chatId);
+            	savedMessage.setDate(messageDate);
+            	step = "askTime";
+            	askTime(chatId);
+
+    	    }
+            else {
         		ArrayList<String> messagesQueue = (ArrayList<String>) getMessagesList();
         		try {
             		if(messagesQueue.contains(userSaid))
@@ -148,15 +162,30 @@ public class Abili extends AbilityBot {
             Message recivedMessage = update.getMessage();
             chatId = recivedMessage.getChatId().toString();
             
-            
+
             if("/start".equals(recivedMessage.getText())) {
+            	startMessage(chatId);
             } 
             else if ("Очередь публикации".equals(recivedMessage.getText())) {
             	showPublicationQueue(chatId);
             } else if (recivedMessage.hasText()) {
-            	System.out.println("Получено тексовое сообщение: " + System.lineSeparator() + userSaid);
             	userSaid = recivedMessage.getText(); 
             	mEntities = recivedMessage.getEntities();
+            	System.out.println("Получено тексовое сообщение: " + System.lineSeparator() + userSaid);
+            	
+             	if("askDate".equals(step)) {
+             		checkDate(userSaid, chatId);
+            	    savedMessage.setDate(messageDate);
+            	    askTime(chatId);
+            	    step = "askTime";
+            	    return;
+        	    }
+        	    if("askTime".equals(step)) {
+        	    	checkTime(userSaid, chatId);
+            	    savedMessage.setTime(messageTime);
+            	    saveMessage(chatId);
+            	    return;
+        	    }
             }
             
             if(recivedMessage.hasPhoto()) {
@@ -195,7 +224,9 @@ public class Abili extends AbilityBot {
             		savedMessage.setMediaGroupId(recivedMessage.getMediaGroupId());
             	}
             	
-            	    askDate(chatId);
+//            	    askDate(chatId);
+                whenToPost(chatId);
+
             } 
             else if(savedMessage != null && update.getMessage().getCaption() == null) {
             	// Если ID медиагруппы, полученного сообщения совпадает с сохраненным, значит идет передача медиагруппы и нужно добавить
@@ -213,19 +244,30 @@ public class Abili extends AbilityBot {
                 	}
 
             	}
-            	else if(savedMessage.dateIsEmpty() && checkDate(userSaid, chatId)) {
-            	    savedMessage.setDate(messageDate);
-            	    askTime(chatId);
-            	}
-            	else if(!savedMessage.dateIsEmpty() && savedMessage.timeIsEmpty() && checkTime(userSaid, chatId)) {
-            	    savedMessage.setTime(messageTime);
-            	    saveMessage(chatId);
-            	}
+
             }
         }
      }
     
     private void askDate(String chatId) {
+    	
+    	InlineKeyboardMarkup inlineKeyboardMarkup =new InlineKeyboardMarkup();
+    	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+		InlineKeyboardButton todayKeyboardButton = new InlineKeyboardButton();
+		todayKeyboardButton.setText("Сегодня");
+		todayKeyboardButton.setCallbackData("setDate_" + LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.uuuu")));
+		InlineKeyboardButton tomorrowKeyboardButton = new InlineKeyboardButton();
+		tomorrowKeyboardButton.setText("Завтра");
+		tomorrowKeyboardButton.setCallbackData("setDate_" + LocalDate.now().plusDays(1L).format(DateTimeFormatter.ofPattern("dd.MM.uuuu")));
+		InlineKeyboardButton dayAfterTomorrowKeyboardButton = new InlineKeyboardButton();
+		dayAfterTomorrowKeyboardButton.setText("Послезавтра");
+		dayAfterTomorrowKeyboardButton.setCallbackData("setDate_" + LocalDate.now().plusDays(1L).format(DateTimeFormatter.ofPattern("dd.MM.uuuu")));
+		List<InlineKeyboardButton> keyboardButtonsRow = new ArrayList<>();
+		keyboardButtonsRow.add(todayKeyboardButton);
+		keyboardButtonsRow.add(tomorrowKeyboardButton);
+		keyboardButtonsRow.add(dayAfterTomorrowKeyboardButton);
+		rowList.add(keyboardButtonsRow);
+    	inlineKeyboardMarkup.setKeyboard(rowList);
 
     	if(!savedMessage.mediaGroupIdIsEmpty()) {
         	SendMessage message = new SendMessage();
@@ -237,18 +279,63 @@ public class Abili extends AbilityBot {
 
         	keepDialog(message, chatId, text, false);
     	}
-    	SendMessage message = new SendMessage();
-    	message.setParseMode("MarkdownV2");
-    	String text = "Введите дату публикации\\(дд\\.мм\\.гггг\\)";
-    	step = 2;
-    	keepDialog(message, chatId, text, false);
+    	try {
+        	SendMessage message = new SendMessage();
+        	message.setParseMode("MarkdownV2");
+        	message.setText("Виберите дату публикации или укажите ее в сообщении \\(дд\\.мм\\.гггг\\)");
+        	message.setReplyMarkup(inlineKeyboardMarkup);
+        	message.setChatId(chatId);
+            execute(message);
+    	} catch (Exception e) {
+    		e.printStackTrace();
+    	}
     }
-    private void askTime(String chatId) {
+    private void startMessage(String chatId) {
     	SendMessage message = new SendMessage();
-    	message.setParseMode("MarkdownV2");
-    	String text = "Введите время публикации\\(ЧЧ:ММ:СС\\)";
-    	step = 3;
-    	keepDialog(message, chatId, text, false);
+        message.setChatId(chatId);
+        String text = "\n\nОтправьте боту то, что вы хотите опубликовать";
+		keepDialog(message, chatId, text, false);
+    }
+    private void whenToPost(String chatId) {
+    	
+    	InlineKeyboardMarkup inlineKeyboardMarkup =new InlineKeyboardMarkup();
+    	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+		InlineKeyboardButton atOnceKeyboardButton = new InlineKeyboardButton();
+		atOnceKeyboardButton.setText("Опубликовать сейчас");
+		atOnceKeyboardButton.setCallbackData("pub_at_once");
+		InlineKeyboardButton laterKeyboardButton = new InlineKeyboardButton();
+		laterKeyboardButton.setText("Опубликовать позднее");
+		laterKeyboardButton.setCallbackData("pub_later");
+		List<InlineKeyboardButton> keyboardButtonsRow1 = new ArrayList<>();
+		keyboardButtonsRow1.add(atOnceKeyboardButton);
+		List<InlineKeyboardButton> keyboardButtonsRow2 = new ArrayList<>();
+		keyboardButtonsRow2.add(laterKeyboardButton);
+		rowList.add(keyboardButtonsRow1);
+		rowList.add(keyboardButtonsRow2);
+    	inlineKeyboardMarkup.setKeyboard(rowList);
+    	try {
+        	SendMessage message = new SendMessage();
+        	message.setParseMode("MarkdownV2");
+        	message.setText("Вы можете опубликовать сообщение прямо сейчас или установить таймер публикации");
+        	message.setReplyMarkup(inlineKeyboardMarkup);
+        	message.setChatId(chatId);
+            execute(message);
+    	} catch (Exception e) {
+    		e.printStackTrace();
+    	}
+    }
+    
+    private void askTime(String chatId) {
+    	
+    	try {
+        	SendMessage message = new SendMessage();
+        	message.setParseMode("MarkdownV2");
+        	message.setText("Указажите время публикации в формате *ЧЧ:ММ:СС*");
+        	message.setChatId(chatId);
+            execute(message);
+    	} catch (Exception e) {
+    		e.printStackTrace();
+    	}
     }
     private boolean checkDate(String date, String chatId) {
     	try {
@@ -279,8 +366,8 @@ public class Abili extends AbilityBot {
     	LocalDateTime messageFileName = LocalDateTime.of(savedMessage.getDate(), savedMessage.getTime());
 
     	SendMessage message = new SendMessage();    	
-		String answerText = "**Ok**\nСообщение будет опубликовано\n" + "**" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
-    			+ "в " + messageFileName.toLocalTime() + "**";
+		String answerText = "Ok\nСообщение будет опубликовано\n" + "*" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
+    			+ "в " + messageFileName.toLocalTime() + "*";
     	keepDialog(message, chatId, answerText,false);
     
     	try(FileWriter fwr = new FileWriter(new File(dir+messageFileName.toString().replace(":", ".")), StandardCharsets.UTF_8)) {
@@ -290,6 +377,8 @@ public class Abili extends AbilityBot {
     		ioe.printStackTrace();
     	} finally {
     	    savedMessage = null;
+    	    step = null;
+    	    startMessage(chatId);
     	}
     }
     public void showTheMessage(String chatId, String message2show) throws Exception {
@@ -403,7 +492,7 @@ public class Abili extends AbilityBot {
 
     	for(String mname : mNames) {
     		 InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
-    		 inlineKeyboardButton.setText(mname.replace(".", ":"));
+    		 inlineKeyboardButton.setText("Запланировано на " + LocalDateTime.parse(mname.replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.uuuu в hh:MM:SS")));
     		 inlineKeyboardButton.setCallbackData(mname);
     		 List<InlineKeyboardButton> keyboardButtonsRow = new ArrayList<>();
     		 keyboardButtonsRow.add(inlineKeyboardButton);
@@ -420,6 +509,7 @@ public class Abili extends AbilityBot {
     private void deleteMessage(String chatId, String message2delete) {
     	new File(dir + message2delete).delete();
     	keepDialog(new SendMessage(), chatId, "Сообщение не будет опубликовано \\- оно удалено \\!", true);
+    	startMessage(chatId);
     	
     }
     private String texter(String userSaid, List<MessageEntity> entities) {
