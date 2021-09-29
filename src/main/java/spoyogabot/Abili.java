@@ -18,6 +18,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -136,6 +138,12 @@ public class Abili extends AbilityBot {
             else if(userSaid.contains("pub_later")) {
             	step = "askDate";
             	askDate(chatId);
+
+    	    }
+            else if(userSaid.contains("pub_at_once")) {
+            	savedMessage.setDate(LocalDate.now());
+            	savedMessage.setTime(LocalTime.now().plusSeconds(10L).truncatedTo(ChronoUnit.SECONDS));
+            	saveMessage(chatId);
 
     	    }
             else if(userSaid.contains("setDate_")) {
