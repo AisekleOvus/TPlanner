@@ -55,7 +55,7 @@ public class Scheduler implements Runnable {
 					if(futureMessageEntry.getValue().isDone()) {
                         messagesSent.remove(futureMessageEntry.getKey(), futureMessageEntry.getValue());
 						new File(dir + futureMessageEntry.getKey().toString().replace(":",".")).delete();
-						System.out.println(dir + futureMessageEntry.getKey().toString().replace(":",".") + " has deleted !");
+//						System.out.println(dir + futureMessageEntry.getKey().toString().replace(":",".") + " has deleted !");
 					}
 				}
 									
@@ -66,6 +66,7 @@ public class Scheduler implements Runnable {
 	}
 	public Set<LocalDateTime> getMessages() throws Exception{
 		return Arrays.stream(new File(dir).listFiles())
+				     .filter(file -> file.getName().matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}\\.\\d{2}(\\.\\d{2})*"))
                      .map(file -> LocalDateTime.parse(file.getName().replace(".", ":")))
                      .sorted()
                      .collect(Collectors.toSet());

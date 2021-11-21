@@ -3,6 +3,16 @@ package spoyogabot;
 import java.util.Map;
 import java.util.HashMap;
 //import java.util.Scanner;
+import java.awt.SystemTray;
+import java.awt.Image;
+import java.awt.MenuItem;
+import java.awt.PopupMenu;
+import java.awt.TrayIcon;
+import java.awt.AWTException;
+import java.awt.Toolkit;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+
 
 import java.io.File;
 import java.io.BufferedReader;
@@ -18,6 +28,40 @@ public class SpoYogaBot {
 	private static String dir;
 
     public static void main(String[] args) {
+    	
+    	// Let's try Tray
+    	
+        if (!SystemTray.isSupported()) {
+            System.out.println("SystemTray is not supported");
+//          return;
+        }
+        else {
+            Image image = Toolkit.getDefaultToolkit().getImage("tplogo15x17.png");
+
+            final PopupMenu popup = new PopupMenu();
+            final TrayIcon trayIcon = new TrayIcon(image, "TPlanner", popup);
+            final SystemTray tray = SystemTray.getSystemTray();
+
+            MenuItem blankItem = new MenuItem("");
+            MenuItem exitItem = new MenuItem("Выключить");
+            exitItem.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    System.exit(1);
+                }
+            });
+            popup.add(exitItem);
+            popup.add(blankItem);
+
+            trayIcon.setPopupMenu(popup);
+
+            try {
+                tray.add(trayIcon);
+            } catch (AWTException e) {
+                System.out.println("TrayIcon could not be added.");
+            }
+        }
+    	//
+    	
     	dir = getInstallDir();
     	new Thread(new Scheduler(getParams())).start();
         try {
