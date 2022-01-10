@@ -15,11 +15,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.time.temporal.ChronoUnit;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
 
 public class Scheduler implements Runnable {
 	private String dir;
 	private LocalDateTime currentMessage;
-	private ConcurrentHashMap<LocalDateTime, ScheduledFuture<Boolean>> messagesSent;
+	private ConcurrentHashMap<File, ScheduledFuture<Boolean>> messagesSent;
 	private ScheduledExecutorService scheduler;
 	private Set<LocalDateTime> timesQueue;
 	private Map<String, String> params;
@@ -44,17 +47,18 @@ public class Scheduler implements Runnable {
 		while(true) {
 			try {
 				Thread.sleep(10000);
-				for(LocalDateTime nextMessage : getMessages()) {
+				for(/*LocalDateTime*/ File nextMessage : getMessages()) {
 					ScheduledFuture<Boolean> testFuture = null;
 					if(!messagesSent.containsKey(nextMessage)) {
-						testFuture = scheduler.schedule(new TelegramIt(params, nextMessage), LocalDateTime.now().until(nextMessage, ChronoUnit.SECONDS), TimeUnit.SECONDS);
+						testFuture = scheduler.schedule(new TelegramIt(params, nextMessage), LocalDateTime.now().until(LocalDateTime.parse(nextMessage.getName().replace(".",":")), ChronoUnit.SECONDS), TimeUnit.SECONDS);
 					    messagesSent.put(nextMessage, testFuture);
 					}
 				}
-				for(Map.Entry<LocalDateTime, ScheduledFuture<Boolean>> futureMessageEntry : messagesSent.entrySet()) {
+				for(Map.Entry<File, ScheduledFuture<Boolean>> futureMessageEntry : messagesSent.entrySet()) {
 					if(futureMessageEntry.getValue().isDone()) {
                         messagesSent.remove(futureMessageEntry.getKey(), futureMessageEntry.getValue());
-						new File(dir + futureMessageEntry.getKey().toString().replace(":",".")).delete();
+//						new File(dir + futureMessageEntry.getKey().toString().replace(":",".")).delete();
+						futureMessageEntry.getKey().delete();
 //						System.out.println(dir + futureMessageEntry.getKey().toString().replace(":",".") + " has deleted !");
 					}
 				}
@@ -64,12 +68,24 @@ public class Scheduler implements Runnable {
 			}
 		}
 	}
-	public Set<LocalDateTime> getMessages() throws Exception{
-		return Arrays.stream(new File(dir).listFiles())
+	public Set<File> getMessages() throws Exception{
+		/*return Arrays.stream(new File(dir).listFiles())
 				     .filter(file -> file.getName().matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}\\.\\d{2}(\\.\\d{2})*"))
                      .map(file -> LocalDateTime.parse(file.getName().replace(".", ":")))
                      .sorted()
-                     .collect(Collectors.toSet());
+                     .collect(Collectors.toSet());*/
+		return Files.walk(Paths.get(dir))
+				          .filter(Files::isRegularFile)
+				          .map(Path::toFile)
+//				          .map(file -> LocalDateTime.parse(file.getName().replace(".", ":")))
+				          .filter(file -> file.getName().matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}\\.\\d{2}(\\.\\d{2})*"))
+				          .sorted((one, another) -> {
+							  LocalDateTime firstF = LocalDateTime.parse(one.getName().replace(".", ":"));
+							  LocalDateTime anotherF = LocalDateTime.parse(another.getName().replace(".", ":"));
+							  return firstF.compareTo(anotherF);
+						  })
+				          .collect(Collectors.toSet());
+
 	}
 	public LocalDateTime getDateTime() {
 		return LocalDateTime.now();

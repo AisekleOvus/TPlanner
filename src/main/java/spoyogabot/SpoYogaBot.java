@@ -2,7 +2,6 @@ package spoyogabot;
 
 import java.util.Map;
 import java.util.HashMap;
-//import java.util.Scanner;
 import java.awt.SystemTray;
 import java.awt.Image;
 import java.awt.MenuItem;
@@ -17,18 +16,21 @@ import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+
 
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-
 public class SpoYogaBot {
 	private static String dir;
 
     public static void main(String[] args) {
-    	
+        
+
     	// Let's try Tray
     	
         if (!SystemTray.isSupported()) {
@@ -36,14 +38,14 @@ public class SpoYogaBot {
 //          return;
         }
         else {
-            Image image = Toolkit.getDefaultToolkit().getImage("tplogo15x17.png");
+            Image image = Toolkit.getDefaultToolkit().getImage("tplogo.png");
 
             final PopupMenu popup = new PopupMenu();
             final TrayIcon trayIcon = new TrayIcon(image, "TPlanner", popup);
             final SystemTray tray = SystemTray.getSystemTray();
 
             MenuItem blankItem = new MenuItem("");
-            MenuItem exitItem = new MenuItem("Выключить");
+            MenuItem exitItem = new MenuItem("Выход");
             exitItem.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
                     System.exit(1);
@@ -53,6 +55,7 @@ public class SpoYogaBot {
             popup.add(blankItem);
 
             trayIcon.setPopupMenu(popup);
+            trayIcon.setImageAutoSize(true);
 
             try {
                 tray.add(trayIcon);
@@ -75,30 +78,7 @@ public class SpoYogaBot {
 //    	String scanned = "";
         String scanned = null;
     	HashMap<String, String> params = new HashMap<>();
-//        System.out.println(getInstallDir() + "settings");
-/*    	try(Scanner scanner = new Scanner(new File(getInstallDir() + "settings")).useDelimiter("\\R")) {
-    		while(scanner.hasNext()) {
-    			scanned = scanner.next();
-                if(scanned.startsWith("\\") || scanned.startsWith("//") || scanned.startsWith("#") || scanned.startsWith(";")) continue;
-                
-                if(scanned.contains("DIR"))
-                	params.put("DIR", scanned.substring(3).replace("=", "").trim());
-                if(scanned.contains("BOT_TOKEN"))
-                	params.put("BOT_TOKEN", scanned.substring(9).replace("=", "").trim());
-                if(scanned.contains("BOT_NAME"))
-                	params.put("BOT_NAME", scanned.substring(8).replace("=", "").trim());
-                if(scanned.contains("CHANEL_ID"))
-                	params.put("CHANEL_ID", scanned.substring(9).replace("=", "").trim());
-                if(scanned.contains("ADMINS_IDS"))
-                	params.put("ADMINS_IDS", scanned.substring(10).replace("=", "").trim());
-                if(scanned.contains("BOT_USERNAME"))
-                	params.put("BOT_USERNAME", scanned.substring(12).replace("=", "").trim());
-                if(scanned.contains("BOT_CREATOR_ID"))
-                	params.put("BOT_CREATOR_ID", scanned.substring(14).replace("=", "").trim());
-    		}
-    	}catch (Exception e) {
-    		e.printStackTrace();
-    	}*/
+
 		try (BufferedReader br = new BufferedReader(new FileReader("settings"))) {
 		    while((scanned = br.readLine()) != null) {
 				if(scanned.startsWith("\\") || scanned.startsWith("//") || scanned.startsWith("#") || scanned.startsWith(";")) continue;
@@ -109,8 +89,21 @@ public class SpoYogaBot {
                 	params.put("BOT_TOKEN", scanned.substring(9).replace("=", "").trim());
                 if(scanned.contains("BOT_NAME"))
                 	params.put("BOT_NAME", scanned.substring(8).replace("=", "").trim());
-                if(scanned.contains("CHANEL_ID"))
-                	params.put("CHANEL_ID", scanned.substring(9).replace("=", "").trim());
+                if(scanned.contains("CHANNELS_ID")) {
+                    String channels = scanned.substring(11).replace("=", "").trim();
+                    params.put("CHANNELS_ID", channels);
+                    for(String cname : channels.split(" ")) {
+                        cname = cname/*.substring(1)*/;
+                        Path chanDirPath = Path.of(params.get("DIR") + File.separator + cname);
+                        if(Files.notExists(chanDirPath)) {
+                            try {
+                                Files.createDirectories(chanDirPath);
+                            }catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
                 if(scanned.contains("ADMINS_IDS"))
                 	params.put("ADMINS_IDS", scanned.substring(10).replace("=", "").trim());
                 if(scanned.contains("BOT_USERNAME"))
@@ -121,22 +114,11 @@ public class SpoYogaBot {
         } catch (Exception e) {
 	        e.printStackTrace();
 	    }
- //   	params.forEach((k, v) -> System.out.println(k + " === " + v));
-//    	System.out.println(getDir() + params.get("DIR"));
+
     	return params;
     }
 	private static String getInstallDir() {
-/*    	try {
-    		String installDir = Paths.get(SpoYogaBot.class        // These several strings of code help to understand where we are
-    				           .getProtectionDomain()                   //
-                               .getCodeSource()                         //
-                               .getLocation()                           //
-                               .getPath()).getParent().toString() + File.separator;//
-    		System.out.println(installDir.replace(":", ""));
-    		return installDir;
-    	}catch (Exception e) {
-    		e.printStackTrace();
-    	}*/
+
     	return System.getProperty("user.dir") + File.separator;
     }
 	public static String getDir() {

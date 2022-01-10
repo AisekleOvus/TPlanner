@@ -14,6 +14,7 @@ import java.io.File;
 import org.telegram.telegrambots.meta.api.objects.MessageEntity;
 
 public class SimpleMessage {
+	private String channelName;
 	private LocalDate messageDate;
 	private LocalTime messageTime;
 	private String text;
@@ -86,6 +87,9 @@ public class SimpleMessage {
 	public boolean reactionsIsEmpty() {
 		return reactions == null;
 	}
+	public boolean channelNameIsEmpty() {
+		return channelName == null;
+	}
 //  GETTERS
 	public List<String[]> getUrlButton() {
 		return urlButtons;
@@ -112,6 +116,9 @@ public class SimpleMessage {
 	public String getMessageReactions() {
 		return reactions;
 	}
+	public String getChannelName() {
+		return channelName + File.separator;
+	}
 	public String getMessageFileName() {
 		return LocalDateTime.of(messageDate, messageTime).toString().replace(":", ".");
 	}
@@ -128,16 +135,22 @@ public class SimpleMessage {
 	public void setTime(LocalTime messageTime) {
 		this.messageTime = messageTime;
 	}
+	public void setChannelName(String channelName) {
+		if(!"".equals(channelName) && !channelName.contains(" ") && !channelName.contains("@"))
+		    this.channelName = channelName;
+	}
 	public void setText(String text) {
-		if(text != null)
-		    this.text = text;
+		if(text != null) {
+			this.text = text;
+			textCutter(false);
+		}
 	}
 	public void setMediaFileId(String mediaId, String mediaType) {
 //		System.out.println("From SimpleMessage: " + mediaType + " " + mediaId);
 		if(mediaId != null && mediaType != null) {
 			mediaFileId.put(mediaId, mediaType);
 			if(getMediaFileId().size() == 1)
-				textCutter();
+				textCutter(true);
 		}
 	}
 	public void setMediaGroupId(String mediaGroupId) {
@@ -157,6 +170,7 @@ public class SimpleMessage {
 	}
 
     public void resetMessage() {
+		channelName = null;
     	messageDate = null;
     	messageTime = null;
     	text = null;
@@ -174,6 +188,8 @@ public class SimpleMessage {
     	for(Map.Entry<String, String> mf :mediaFileId.entrySet()) {
     		sb.append(mf.getValue() + " = " + mf.getKey() + System.lineSeparator());
     	}
+		if(!channelNameIsEmpty())
+			sb.append("toChannel =" + channelName + System.lineSeparator());
     	if(!reactionsIsEmpty())
     		sb.append("reactions =" + reactions + System.lineSeparator());
     	if(!urlButtons.isEmpty()) {
@@ -183,24 +199,26 @@ public class SimpleMessage {
     		}
     	}
     	sb.append(text);
-    	
+//    	System.out.println(sb.toString());
     	return sb.toString();
     }
     
     public static SimpleMessage restore(String path, String fileName) {
     	SimpleMessage sm = new SimpleMessage();
     	StringBuilder sb = new StringBuilder();
-    	try(Scanner sc = new Scanner(new File(path + fileName)).useDelimiter("\\R")) {
+    	try(Scanner sc = new Scanner(new File(path + fileName), "UTF-8").useDelimiter("\\R")) {
         	LocalDateTime messageDT = LocalDateTime.parse(fileName.replace(".", ":"));
         	
         	sm.setDate(messageDT.toLocalDate());
         	sm.setTime(messageDT.toLocalTime());
         	
-        	while(sc.hasNext()) {
+        	for(int i = 1; sc.hasNext(); i++) {
         		String line = sc.next();
-//        		System.out.println(line);
-        		
-        		if(line.contains("photo =")) {
+//        		System.out.println(i + ") " + line + " " + sc.hasNext());
+				if(line.contains("toChannel =")) {
+					sm.setChannelName(line.substring(11).trim());
+				}
+        		else if(line.contains("photo =")) {
     			    sm.setMediaFileId(line.substring(7).trim(), "photo");
 //    		    	System.out.println("PHOTO_LINE: " + line + "\n");
         		}
@@ -235,11 +253,10 @@ public class SimpleMessage {
     	
     	return sm;
     }
-	private void textCutter() {
+	private void textCutter(boolean caption) {
 		String text = getText();
-//		System.out.println("Before: " + text.length());
-		if(text != null && text.length() > 984)
+		if(caption && text != null && text.length() > 984)
 			setText(text.substring(0,984));
-//		System.out.println("After: " + getText().length());
+
 	}
 }

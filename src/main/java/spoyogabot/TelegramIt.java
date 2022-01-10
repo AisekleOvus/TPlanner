@@ -28,7 +28,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.methods.send.SendSticker;
 
 public class TelegramIt extends TelegramLongPollingBot implements Callable {
-	private LocalDateTime message2post;
+	private File message2post;
 	private InlineKeyboardMarkup buttonsToAdd;
 	
 	private String chatId;
@@ -37,9 +37,9 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
 	private String botUserName;
 	private String[] urlButton;
 
-	public TelegramIt(Map<String, String> params, LocalDateTime message2post) {
+	public TelegramIt(Map<String, String> params, File message2post) {
 		this.message2post = message2post;
-		this.chatId = params.get("CHANEL_ID");
+//		this.chatId = params.get("CHANNELS_ID");
 		this.dir = SpoYogaBot.getDir() + params.get("DIR") + File.separator;
 		this.botToken = params.get("BOT_TOKEN");
 		this.botUserName = params.get("BOT_USERNAME");
@@ -92,7 +92,7 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
 	}
 	
 	private InlineKeyboardMarkup mixButtons(InlineKeyboardMarkup ikmToAdd) {
-		InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+/*		InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 		List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
 		
 	    List<InlineKeyboardButton> row1 = buttonsToAdd.getKeyboard().get(0).size() != 1 
@@ -103,10 +103,11 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
 		    		                          : ikmToAdd.getKeyboard().get(0);		    		                          
 
 		
-		rowList.add(row1);
 		rowList.add(row2);
-    	inlineKeyboardMarkup.setKeyboard(rowList);                        
-		return inlineKeyboardMarkup;
+		rowList.add(row1);
+    	inlineKeyboardMarkup.setKeyboard(rowList);      */
+		buttonsToAdd.getKeyboard().addAll(ikmToAdd.getKeyboard());
+		return buttonsToAdd;
 		
 	}
     private boolean sendMedia2channel() throws Exception{
@@ -117,11 +118,16 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
     	List<String> videoList = new ArrayList<>();
     	String sticker = null;
 		StringBuilder text2send = new StringBuilder();
-		try(Scanner scannedMessage = new Scanner(new File(dir + message2post.toString().replace(":", ".")), "UTF-8").useDelimiter("\\R")) {
+		try(Scanner scannedMessage = new Scanner(/*new File(dir + message2post.toString().replace(":", "."))*/message2post, "UTF-8").useDelimiter("\\R")) {
 			while(scannedMessage.hasNext()) {
 				String nextStr = scannedMessage.next();
 				if(!nextStr.startsWith("/*") && !nextStr.endsWith("*/")) {
-					if(nextStr.contains("photo ="))
+					if(nextStr.contains("toChannel =")) {
+//						System.out.println(nextStr);
+						chatId = "@" + nextStr.substring(11).trim();
+//                        System.out.println("toChannel ="+chatId);
+					}
+					else if(nextStr.contains("photo ="))
 						photoList.add(nextStr.substring(8));
 					
 					else if(nextStr.contains("video ="))
@@ -148,7 +154,7 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
 		    e.printStackTrace();
 		    return false;
 		}
-		
+
 		photosAllTogather = photoList.size();
 		videosAllTogather = videoList.size();
 
@@ -200,18 +206,24 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
         } else if ((photosAllTogather + videosAllTogather) > 1) {
 
         	List<InputMedia> medias = new ArrayList<>();
+			boolean weHaveCaption = false;
         	
             for(int i = 0; i < photoList.size(); i++) {        		
             	InputMedia media = (InputMedia) new InputMediaPhoto();
-/*            	if(i == 0)
-            	    media.setCaption(text2send.toString());*/
+				if(i == 0 && buttonsToAdd == null) {
+					media.setCaption(text2send.toString());
+					media.setParseMode("MarkdownV2");
+					weHaveCaption = true;
+				}
             	media.setMedia(photoList.get(i));
             	medias.add(media);
         	}
         	for(int i = 0; i < videoList.size(); i++) {
             	InputMedia media = (InputMedia) new InputMediaVideo();
-/*            	if(i == 0)
-            	    media.setCaption(text2send.toString());*/
+				if(i == 0 && buttonsToAdd == null && !weHaveCaption) {
+					media.setCaption(text2send.toString());
+					media.setParseMode("MarkdownV2");
+				}
             	media.setMedia(videoList.get(i));
             	medias.add(media);
         	}
@@ -220,16 +232,17 @@ public class TelegramIt extends TelegramLongPollingBot implements Callable {
             message.setChatId(chatId);
             message.setMedias(medias);
             execute(message);
-            
-        	SendMessage apendix = new SendMessage();
-        	apendix.setParseMode("MarkdownV2");
-        	apendix.setChatId(chatId);
-        	apendix.setText(text2send.toString());
+
+			if(buttonsToAdd != null) {
+				SendMessage apendix = new SendMessage();
+				apendix.setParseMode("MarkdownV2");
+				apendix.setChatId(chatId);
+				apendix.setText(text2send.toString());
+				apendix.setReplyMarkup(buttonsToAdd);
+				execute(apendix); 
+			}
         	
-            if(buttonsToAdd != null)
-            	apendix.setReplyMarkup(buttonsToAdd);
-        	
-            execute(apendix);
+
         }
         
     	return true;

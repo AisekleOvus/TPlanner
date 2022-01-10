@@ -70,9 +70,9 @@ import org.apache.commons.validator.routines.UrlValidator;
 public class Abili extends AbilityBot {
 
 	private String dir;
-
 	private SimpleMessage savedMessage;
 	private Message messageEditText;
+	private Message timeLineText;
 	private Message messageEditMedia;
 	private Message messageToReturn;
 	private Message titleMessage;
@@ -85,6 +85,8 @@ public class Abili extends AbilityBot {
 	private String urlButtonHref;
 	private String oldFileName;
 	private String admins;
+    private String channels;
+    private String channelName;
 	private String creatorId;
 	private String userSaidControll;
 	private LocalDate messageDate;
@@ -97,7 +99,7 @@ public class Abili extends AbilityBot {
 
 
 	private boolean changingPostTime;
-	private String exceptDeletedMessage;
+	private Path exceptDeletedMessage;
 
 	private boolean editorModeOn;
 	private String messageToEdit;
@@ -107,6 +109,7 @@ public class Abili extends AbilityBot {
 		this.dir = SpoYogaBot.getDir() + params.get("DIR") + File.separator;
 		this.admins = params.get("ADMINS_IDS");
 		this.creatorId = params.get("BOT_CREATOR_ID");
+        this.channels = params.get("CHANNELS_ID");
 		changingPostTime = false;
 		messageToDeleteId = new HashSet<>();
 		wwhMessage = new ArrayList<>();
@@ -160,10 +163,13 @@ public class Abili extends AbilityBot {
 	}
 	private void buttonDeleter(String buttonToDelete, Message message) {
 		List<List<InlineKeyboardButton>> rowList = null;
+		List<List<InlineKeyboardButton>> timeLineRowList = null;
 		InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+		InlineKeyboardMarkup timeLineInlineKeyboardMarkup = new InlineKeyboardMarkup();
 		
 		if(buttonToDelete == null) {
-			rowList = message.getReplyMarkup().getKeyboard()
+//			rowList = message.getReplyMarkup().getKeyboard()
+			rowList = messageEditText.getReplyMarkup().getKeyboard()
                     .stream()
                     .map(ikbList -> ikbList.stream()
                   		                 .map(ikb -> { 
@@ -180,8 +186,9 @@ public class Abili extends AbilityBot {
 			inlineKeyboardMarkup.setKeyboard(rowList);	
 
 			EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
-			emrm.setChatId(message.getChatId().toString());
-			emrm.setMessageId(message.getMessageId());
+//			emrm.setChatId(message.getChatId().toString());
+			emrm.setChatId(messageEditText.getChatId().toString());
+			emrm.setMessageId(messageEditText.getMessageId());
 			emrm.setReplyMarkup(inlineKeyboardMarkup);
 
 			try {
@@ -190,6 +197,7 @@ public class Abili extends AbilityBot {
 //			    e.printStackTrace();
 			}
 		} else {
+//			List<List<InlineKeyboardButton>> timeLineRowList = null;
 			String deleteButtonName = buttonToDelete.substring(0, (buttonToDelete.indexOf("_❌")));
 			List<String[]> oldUrlButtonsList = savedMessage.getUrlButton();
 			for(int i = 0; i < oldUrlButtonsList.size(); i++) {
@@ -199,26 +207,53 @@ public class Abili extends AbilityBot {
 			}
 			savedMessage.setUrlButton(oldUrlButtonsList);
 			
-			rowList = message.getReplyMarkup().getKeyboard()
+			rowList = messageEditText.getReplyMarkup().getKeyboard()//;
+/*			int removeButtonIndx = 0;
+
+			for(List<InlineKeyboardButton> row : rowList) {
+				System.out.print(buttonToDelete + " = ");
+				row.stream().forEach(ikb -> System.out.println(ikb.getCallbackData()));
+                if(row.stream().anyMatch(ikb -> ikb.getCallbackData().contains(buttonToDelete))) {
+					rowList.remove(removeButtonIndx + 1);
+					break;
+				}
+				removeButtonIndx++;
+			}*/
+
                     .stream()
                     .map(ikbList -> ikbList.stream()
                   		                 .filter(ikb -> !ikb.getCallbackData().contains(buttonToDelete))
                   		                 .collect(Collectors.toList()))
                     .collect(Collectors.toList());
 			
+			System.out.println("oldUrlButtonsList contains " + oldUrlButtonsList.size() + " elments(s)");
 			if(oldUrlButtonsList.isEmpty()) {
-				rowList = rowList.stream()
+//				rowList = rowList.stream()
+				timeLineRowList = timeLineText.getReplyMarkup().getKeyboard().stream()
                                  .map(ikbList -> ikbList.stream()
               		                                    .filter(ikb -> !ikb.getText().contains("Удалить кнопку"))
               		                                    .collect(Collectors.toList()))
                                  .collect(Collectors.toList());
+
+				timeLineInlineKeyboardMarkup.setKeyboard(timeLineRowList);
+				EditMessageReplyMarkup tlemrm = new EditMessageReplyMarkup();
+				tlemrm.setChatId(timeLineText.getChatId().toString());
+				tlemrm.setMessageId(timeLineText.getMessageId());
+				tlemrm.setReplyMarkup(timeLineInlineKeyboardMarkup);
+
+				try {
+					execute(tlemrm);
+				} catch (Exception e) {
+//			    e.printStackTrace();
+				}
 			}
 
 			inlineKeyboardMarkup.setKeyboard(rowList);	
 
 			EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
-			emrm.setChatId(message.getChatId().toString());
-			emrm.setMessageId(message.getMessageId());
+//			emrm.setChatId(message.getChatId().toString());
+			emrm.setChatId(timeLineText.getChatId().toString());
+			emrm.setMessageId(messageEditText.getMessageId());
 			emrm.setReplyMarkup(inlineKeyboardMarkup);
 			
 			try {
@@ -226,6 +261,7 @@ public class Abili extends AbilityBot {
 			} catch (Exception e) {
 //			    e.printStackTrace();
 			}
+			messageEditText.setReplyMarkup(inlineKeyboardMarkup);
 //			saveMessage(chatId, true);
 		}
 	}
@@ -234,7 +270,8 @@ public class Abili extends AbilityBot {
         try {
             abortarium(chatId);
             Message mmm = showTheMessage(chatId, savedMessage.toString());
-            editorMode(mmm, chatId, false);
+//            editorMode(mmm, chatId, false);
+            editorMode(timeLineText, chatId, false);
         } catch(Exception e) {
             e.printStackTrace();
         }
@@ -272,7 +309,8 @@ public class Abili extends AbilityBot {
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
 
-        for(List<InlineKeyboardButton> ikbl : mem.getReplyMarkup().getKeyboard()) {
+//        for(List<InlineKeyboardButton> ikbl : mem.getReplyMarkup().getKeyboard()) {
+        for(List<InlineKeyboardButton> ikbl : timeLineText.getReplyMarkup().getKeyboard()) {
             List<InlineKeyboardButton> buttonRow = ikbl;
 
             if(ikbl.stream().anyMatch(ikb -> ikb.getCallbackData().contains("noClear"))) {
@@ -290,7 +328,8 @@ public class Abili extends AbilityBot {
         inlineKeyboardMarkup.setKeyboard(rowList);
         EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
         emrm.setChatId(chatId);
-        emrm.setMessageId(mem.getMessageId());
+//        emrm.setMessageId(mem.getMessageId());
+        emrm.setMessageId(timeLineText.getMessageId());
         emrm.setReplyMarkup(inlineKeyboardMarkup);
         try {
             execute(emrm);
@@ -300,14 +339,16 @@ public class Abili extends AbilityBot {
     }
 	private void clearMedia(String chatId, Message mem) {
 
-        boolean status = mem.getReplyMarkup().getKeyboard().stream()
+//        boolean status = mem.getReplyMarkup().getKeyboard().stream()
+        boolean status = timeLineText.getReplyMarkup().getKeyboard().stream()
 				.flatMap(ikbl -> ikbl.stream())
 				.anyMatch(ikb -> ikb.getText().contains("Очистить медиа"));
 		if(status) {
 			InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
 			List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
 
-			for(List<InlineKeyboardButton> ikbl : mem.getReplyMarkup().getKeyboard()) {
+//			for(List<InlineKeyboardButton> ikbl : mem.getReplyMarkup().getKeyboard()) {
+            for(List<InlineKeyboardButton> ikbl : timeLineText.getReplyMarkup().getKeyboard()) {
 				List<InlineKeyboardButton> buttonRow = ikbl;
 
 				for(InlineKeyboardButton ikb : ikbl) {
@@ -329,7 +370,8 @@ public class Abili extends AbilityBot {
 			inlineKeyboardMarkup.setKeyboard(rowList);
 			EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
 			emrm.setChatId(chatId);
-			emrm.setMessageId(mem.getMessageId());
+//			emrm.setMessageId(mem.getMessageId());
+            emrm.setMessageId(timeLineText.getMessageId());
 			emrm.setReplyMarkup(inlineKeyboardMarkup);
 			try {
 				execute(emrm);
@@ -339,29 +381,32 @@ public class Abili extends AbilityBot {
 		}
 	}
 	private void addMedia(String chatId, Message mem) {
+//        System.out.println("The message: \n" + savedMessage.toString());
 		messageEditMedia = mem;
 		addMedia(chatId, null, null, null);
+		
 	}
 	private void addMedia(String chatId, Integer messageId, String mediaId, String mediaType) {
+//		System.out.println("The message: \n" + savedMessage.toString());
 		if(mediaType == null) {
 			step = "wantedMedia";
 			SendMessage message = new SendMessage();
-			messageToDeleteId.add(keepDialog(message, chatId, "Добавляйте медиа по одному файлу\nТекст в медиа будет проигнорирован\nЕсли редактируемая публикация содержит текст длиннее 984 знаков \\- он будет обрезан до этого значения", false).getMessageId());
+			messageToDeleteId.add(keepDialog(message, chatId, "Добавляйте медиа по одному файлу\nТекст в медиа будет проигнорирован\nЕсли редактируемая публикация содержит текст длиннее 984 знаков \\- он будет сокоращен до этого значения", false).getMessageId());
 		} else {
 			step = null;
 			messageDeleter(chatId);
             savedMessage.setMediaFileId(mediaId, mediaType);
-//          System.out.println(mediaId + " " + mediaType);
             try {
             	abortarium(chatId);
                 Message mmm = showTheMessage(chatId, savedMessage.toString());
-                editorMode(mmm, chatId, true);
+ //               editorMode(mmm, chatId, true);
+//                System.out.println("addMedia(): timeLineText: \n" + timeLineText);
+                editorMode(timeLineText, chatId, true);
             } catch(Exception e) {
             	e.printStackTrace();
             }
             
 		}
-//		Map<String, String> mediaMap = savedMessage.getMediaFileId();
 	}
 	
     @Override
@@ -372,11 +417,23 @@ public class Abili extends AbilityBot {
     	String photo_id = null;
     	String video_id = null;
     	String sticker_id = null;
-    	
+
     	if(update.hasCallbackQuery()) {
             userSaid = update.getCallbackQuery().getData();
             chatId = update.getCallbackQuery().getMessage().getChatId().toString();
 
+            if(userSaid.contains("\uD83D\uDCE3")) {
+                String cname = userSaid.substring(3, userSaid.lastIndexOf("_"));
+                String whatFor = userSaid.substring(userSaid.lastIndexOf("_") + 1);
+                channelName = cname;
+//                System.out.println(whatFor);
+                if("showPubQueue".equals(whatFor))
+                    showPublicationQueue(chatId);
+				if("postMessage".equals(whatFor)) {
+                    savedMessage.setChannelName(cname);
+                    whenToPost(chatId);
+                }
+            }
             if(userSaid.contains("noClear")) {
                 noClearButtonHandler(chatId, update.getCallbackQuery().getMessage());
             }
@@ -385,6 +442,9 @@ public class Abili extends AbilityBot {
             }
             if(userSaid.contains("addMedia_")) {
             	addMedia(chatId, update.getCallbackQuery().getMessage());
+
+				if(savedMessage.getMediaFileId().size() == 1 && userSaid.length() > 984)
+			        warnSignCounter(chatId, false);
             }
 			if(userSaid.contains("clearMedia_")) {
 				clearMedia(chatId, update.getCallbackQuery().getMessage());
@@ -397,17 +457,19 @@ public class Abili extends AbilityBot {
             
             if(userSaid.contains("_❌")) {
             	editorModeOn = true;
-            	buttonDeleter(userSaid, update.getCallbackQuery().getMessage());
+//            	buttonDeleter(userSaid, update.getCallbackQuery().getMessage());
+                buttonDeleter(userSaid, messageEditText);
             }
             if(userSaid.contains("deleteUrlButton")) {
-            	buttonDeleter(update.getCallbackQuery().getMessage());
+//            	buttonDeleter(update.getCallbackQuery().getMessage());
+                buttonDeleter(messageEditText);
             }
             
             if(userSaid.contains("rewriteMessage_")) {
                 editorModeOn = true;
             	step = "rewriteMessageText";
 
-            	messageEditText = update.getCallbackQuery().getMessage();
+//            	messageEditText = update.getCallbackQuery().getMessage();
             	messageToDeleteId.remove(messageEditText.getMessageId());
             	
             	SendMessage eMessage = new SendMessage();
@@ -420,18 +482,27 @@ public class Abili extends AbilityBot {
             		e.printStackTrace();
             	}
             }
-            if(userSaid.contains("show_pub_queue")) {
+            if(userSaid.contains("c_choice")) {
                 messageDeleter(chatId, update.getCallbackQuery().getMessage().getMessageId());
-//                System.out.println("show_pub_queue");
                 abortarium(chatId);
                 editorModeOn = false;
-                showPublicationQueue(chatId);
+                setChannelSelection(chatId,"showPubQueue");
+            }
+            if(userSaid.contains("show_pub_queue")) {
+                messageDeleter(chatId, update.getCallbackQuery().getMessage().getMessageId());
+                abortarium(chatId);
+                editorModeOn = false;
+                if(channelName == null)
+                   setChannelSelection(chatId,"showPubQueue");
+                else
+                    showPublicationQueue(chatId);
 
             }
             
             if(userSaid.contains("delete_")) {
 try {
-                deleteMessage(chatId, savedMessage.getMessageFileName(), false);
+                exceptDeletedMessage = Path.of(dir,savedMessage.getChannelName(),savedMessage.getMessageFileName());
+                deleteMessage(chatId, savedMessage.getMessageFileName(), savedMessage.getChannelName(), false);
             	step = null;
             	
                 if(wwhMessage != null) {
@@ -443,6 +514,10 @@ try {
             	if(appendixMessage != null) {
             	    messageDeleter(chatId, appendixMessage.getMessageId());
             	    appendixMessage = null;
+            	}
+            	if(timeLineText !=null) {
+            	    messageDeleter(chatId, timeLineText.getMessageId());
+            	    timeLineText = null;
             	}
                 
                 showPublicationQueue(chatId);
@@ -476,10 +551,11 @@ try {
              if(userSaid.contains("pub_at_once") && savedMessage != null) {
             	savedMessage.setDate(LocalDate.now());
             	savedMessage.setTime(LocalTime.now().plusSeconds(5L).truncatedTo(ChronoUnit.SECONDS));
-            	
-            	exceptDeletedMessage = LocalDateTime.of(savedMessage.getDate(), savedMessage.getTime()).toString().replace(":", ".");
+
+                 exceptDeletedMessage = Path.of(dir,savedMessage.getChannelName(),savedMessage.getMessageFileName());
 
             	editorModeOn = false;
+				
             	saveMessage(chatId);
             	
 
@@ -509,8 +585,7 @@ try {
             	} catch (Exception e) {
             		e.printStackTrace();
             	}
-            	
-            	whenToPost(chatId);
+            	setChannelSelection(chatId, "postMessage");
             }
             if(userSaid.contains("abort_Message")) {
                 abortarium(chatId);
@@ -537,7 +612,7 @@ try {
                 		e.printStackTrace();
                 	}
             	} else {
-            		messageEditText = update.getCallbackQuery().getMessage();
+//            		messageEditText = update.getCallbackQuery().getMessage();
             	}
             	
             	addUrlButton(chatId);
@@ -546,8 +621,8 @@ try {
             	editorModeOn = true;
             	oldFileName = LocalDateTime.of(savedMessage.getDate(), savedMessage.getTime()).toString().replace(":",".");
             	changingPostTime = true;
-            	messageEditText = update.getCallbackQuery().getMessage();
-            	deleteMessage(chatId, oldFileName, true);
+//            	messageEditText = update.getCallbackQuery().getMessage();
+            	deleteMessage(chatId, oldFileName, savedMessage.getChannelName(), true);
             	
             	whenToPost(chatId);
 
@@ -589,7 +664,7 @@ try {
 
             	userSaid = recivedMessage.getText(); 
             	mEntities = recivedMessage.getEntities();
-            	savedMessage.setText(texter(userSaid, mEntities));
+            	savedMessage.setText(texter(chatId, userSaid, mEntities));
 
             	if(messageTextEditor(chatId, messageEditText, userSaid, mEntities))
             		messageDeleter(chatId,recivedMessage.getMessageId());
@@ -605,7 +680,9 @@ try {
             } 
             else if ("Очередь публикации".equals(recivedMessage.getText())) {
                 messageToDeleteId.add(recivedMessage.getMessageId());
-            	showPublicationQueue(chatId);
+//                System.out.println("channels: " + channels);
+                setChannelSelection(chatId, "showPubQueue");
+//            	showPublicationQueue(chatId);
             } else if (recivedMessage.hasText()) {
             	userSaid = recivedMessage.getText(); 
             	mEntities = recivedMessage.getEntities();
@@ -673,7 +750,8 @@ try {
             
             if(recivedMessage.hasPhoto()) {
         		String uSaid = recivedMessage.getCaption();
-        		       uSaid = userSaid == null ? "" : userSaid;
+        		       uSaid = uSaid == null ? "" : uSaid;
+//                       System.out.println("Get photo with caption: \n" + uSaid);
         		List<MessageEntity> mediaEntities = recivedMessage.getCaptionEntities();
         		String photoId = update.getMessage().getPhoto().stream()
         				.findFirst()
@@ -683,6 +761,10 @@ try {
             	if("wantedMedia".equals(step)) {
             		messageToDeleteId.add(update.getMessage().getMessageId());
             		addMedia(chatId, messageEditMedia.getMessageId(), photoId, "photo");
+
+					if(savedMessage.getMediaFileId().size() == 1 && userSaid.length() > 984)
+						warnSignCounter(chatId, false);
+
             	} else {
                 	editable.add(recivedMessage);
             		userSaid = uSaid;
@@ -692,13 +774,17 @@ try {
             }
             if(recivedMessage.hasVideo()) {
         		String uSaid = recivedMessage.getCaption();
-        		       uSaid = userSaid == null ? "" : userSaid;
+        		       uSaid = uSaid == null ? "" : uSaid;
         		List<MessageEntity> mediaEntities = recivedMessage.getCaptionEntities();
         		String videoId = update.getMessage().getVideo().getFileId();
         		
             	if("wantedMedia".equals(step)) {
             		messageToDeleteId.add(update.getMessage().getMessageId());
             		addMedia(chatId, messageEditMedia.getMessageId(), videoId, "video");
+
+					if(savedMessage.getMediaFileId().size() == 1 && userSaid.length() > 984)
+						warnSignCounter(chatId, false);
+
             	} else {
                 	editable.add(recivedMessage);
             		userSaid = uSaid;
@@ -723,13 +809,15 @@ try {
             	savedMessage = new SimpleMessage();
             	editable.add(recivedMessage);
             	
-//            	System.out.println("Сохраняем текст");
+//            	System.out.println("Сохраняем текст: " + userSaid);
 
-            	savedMessage.setText(texter(userSaid, mEntities));
+            	savedMessage.setText(texter(chatId, userSaid, mEntities));
+//                System.out.println("savedMessage.getTExt(): \n" +savedMessage.getText());
 
             	if(photo_id != null) {
 //                    System.out.println("Сохраняем фото");            		
             		savedMessage.setMediaFileId(photo_id, "photo");
+					
             	}
             	if(video_id != null) {
 //            		System.out.println("Сохраняем видео");
@@ -746,7 +834,7 @@ try {
             	
 
 //                whenToPost(chatId);
-            	if(!savedMessage.mediaGroupIdIsEmpty()) {
+/*            	if(!savedMessage.mediaGroupIdIsEmpty()) {
                 	SendMessage message = new SendMessage();
                 	message.setParseMode("MarkdownV2");
                 	String text = "К сожалению Telegram, пока, не разрешает ботам отправлять в чаты Медиа\\-Альбомы с полноценным форматированием,"
@@ -754,7 +842,7 @@ try {
 
 
                 	messageToDeleteId.add(keepDialog(message, chatId, text, false).getMessageId());
-            	}
+            	}*/
  /*           	try {
                 	if(changeTitleMessage(chatId)) {
                 		messageDeleter(chatId, editable);
@@ -795,73 +883,56 @@ try {
     
     private boolean messageTextEditor(String chatId, Message messageEditText, String text, List<MessageEntity> mEntities) {
 try {
-    	
+	    EditMessageText emt = null;
+	    EditMessageCaption emc = null;
+	    
     	String firstStringText = null;
-    	String changeTimeFirstStringText = "Запланировано на " + LocalDateTime.of(savedMessage.getDate(), savedMessage.getTime()).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString();
+    	String changeTimeFirstStringText = "__Запланировано на *" + LocalDateTime.of(savedMessage.getDate(), savedMessage.getTime()).format(DateTimeFormatter.ofPattern("dd\\.MM\\.yyyy в HH:mm:ss")).toString() + "*__";
 
-    	if(messageEditText.getCaption() == null) {
- 		    firstStringText = new Scanner(messageEditText.getText()).useDelimiter("\\R").next();        		
-    		
+// 		    firstStringText = new Scanner(messageEditText.getText()).useDelimiter("\\R").next();
+//			 System.out.println(firstStringText);
 
-    		if(changingPostTime)
-     		    firstStringText = changeTimeFirstStringText;   
-    		
-        	text = firstStringText  + "\n\n" + text;
-    		
-    		
-    		Integer firstStringTextLength = firstStringText.length();
-    		Integer secondHalfFirstStringTextLength = firstStringText.substring(firstStringText.indexOf("на") + 1).length();
-    		
-    		if(mEntities == null)
-    			mEntities = new ArrayList<>();
-    		
-    		mEntities.add(new MessageEntity("underline", 0, firstStringTextLength));
-    		mEntities.add(new MessageEntity("bold", firstStringText.indexOf("на") + 2, secondHalfFirstStringTextLength));
+/*			 System.out.println("messageEditText.getText():\n" + messageEditText.getText());
+			 System.out.println("text:\n" + text);*/
 
+   	
+    		if(changingPostTime) {
+				firstStringText = changeTimeFirstStringText;
+				emt = new EditMessageText();
+				emt.setChatId(chatId);
+				emt.setMessageId(timeLineText.getMessageId());
+				emt.setParseMode("MarkdownV2");
+				emt.setText(firstStringText);
+//				emt.setEntities(mEntities);
+//				emt.setReplyMarkup(messageEditText.getReplyMarkup());
+				emt.setReplyMarkup(timeLineText.getReplyMarkup());
+				changingPostTime = false;
+			}    		
+    		else if(messageEditText.getCaption() == null) {
+				emt = new EditMessageText();
+            	emt.setChatId(chatId);
+            	emt.setMessageId(messageEditText.getMessageId());
+            	emt.setText(text);
+            	emt.setEntities(mEntities);
+            	emt.setReplyMarkup(messageEditText.getReplyMarkup());
 
-    		
-        	EditMessageText emt = new EditMessageText();
-        	emt.setChatId(chatId);
-        	emt.setMessageId(messageEditText.getMessageId());
-        	emt.setText(text);
-        	emt.setEntities(mEntities);
-        	emt.setReplyMarkup(messageEditText.getReplyMarkup());
-        	try {
-        		execute(emt);
-        	} catch (Exception e) {
-        		e.printStackTrace();
-        		return false;
-        	}
-    	} else {
-		    firstStringText = new Scanner(messageEditText.getCaption()).useDelimiter("\\R").next();   		
-   		
-    		if(changingPostTime)
-     		    firstStringText = changeTimeFirstStringText;
-    		
-        	text = firstStringText  + "\n\n" + text;  
-    		
-    		Integer firstStringTextLength = firstStringText.length();
-    		Integer secondHalfFirstStringTextLength = firstStringText.substring(firstStringText.indexOf("на") + 1).length();
-    		
-    		if(mEntities == null)
-    			mEntities = new ArrayList<>();
-    		
-    		mEntities.add(new MessageEntity("underline", 0, firstStringTextLength));
-    		mEntities.add(new MessageEntity("bold", firstStringText.indexOf("на") + 2, secondHalfFirstStringTextLength));
-    		
-        	EditMessageCaption emc = new EditMessageCaption();
-        	emc.setChatId(chatId);
-        	emc.setMessageId(messageEditText.getMessageId());
-        	emc.setCaption(text);
-        	emc.setCaptionEntities(mEntities);
-        	emc.setReplyMarkup(messageEditText.getReplyMarkup());
-        	try {
-        		execute(emc);
-        	} catch (Exception e) {
-        		e.printStackTrace();
-        		return false;
-        	}
+        	} else {
+	            emc = new EditMessageCaption();
+            	emc.setChatId(chatId);
+            	emc.setMessageId(messageEditText.getMessageId());
+            	emc.setCaption(text);
+            	emc.setCaptionEntities(mEntities);
+            	emc.setReplyMarkup(messageEditText.getReplyMarkup());
     	}
+        	try {
+        		if(emt != null)
+        		    execute(emt);
+        		if(emc != null)
+        			execute(emc);
+        	} catch (Exception e) {
+        		    e.printStackTrace();
+        		    return false;
+        	}
 }catch(Exception e) {
 	e.printStackTrace();
 }
@@ -888,6 +959,10 @@ try {
     	if(appendixMessage != null) {
     	    messageDeleter(chatId, appendixMessage.getMessageId());
     	    appendixMessage = null;
+    	}
+    	if(timeLineText != null) {
+    	    messageDeleter(chatId, timeLineText.getMessageId());
+    	    timeLineText = null;
     	}
     	
     	messageDeleter(chatId);
@@ -952,7 +1027,7 @@ try {
 //            	    System.out.println("Deleting message from List: " + message.getMessageId());
             	    messId = null;
         		} catch (Exception e) {
-        			System.out.println("Can't delete message from List: " + message.getMessageId());
+//        			System.out.println("Can't delete message from List: " + message.getMessageId());
         			//e.printStackTrace();
         		}
     		}
@@ -965,7 +1040,7 @@ try {
 //        	    System.out.println("Deleting message: " + messId);
 
     		} catch (Exception e) {
-    			System.out.println("Can't delete message from variable messId: " + messId);
+//    			System.out.println("Can't delete message from variable messId: " + messId);
 //    			e.printStackTrace();
     		} finally {
         	    messId = null;	
@@ -984,7 +1059,7 @@ try {
                 	} catch (Exception e) {
                 		
                 		//e.printStackTrace();
-                		System.out.println("Can't delete message from messageToDeleteId set: " + mId);
+//                		System.out.println("Can't delete message from messageToDeleteId set: " + mId);
                 	}
         		}
            		messageToDeleteId.clear();
@@ -1050,8 +1125,10 @@ try {
         	    	InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         	    	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
         	    	List<List<InlineKeyboardButton>> newButtonsList = new ArrayList<>();
-        	    	rowList.addAll(messageEditText.getReplyMarkup().getKeyboard()) ; // try to add all message buttons 
-        	    	
+
+                if(messageEditText != null && messageEditText.getReplyMarkup() != null) {
+                    rowList.addAll(messageEditText.getReplyMarkup().getKeyboard()); // try to add all message buttons
+                }
         	    	
         	    	
         	    	long pasteButtonIndex = rowList.stream()
@@ -1083,6 +1160,7 @@ try {
         		
             	urlButtonTitle = null;
             	urlButtonHref = null;
+				step = null;
         	} else {
         	    messageToDeleteId.add(execute(message).getMessageId());
         	}
@@ -1092,24 +1170,31 @@ try {
         
     }
     private void editMessageMenu(String chatId) {  // just watches all changes in whatWeHave and set up editor menu
+		System.out.println("editMessageMenu");
 		boolean isRowListChanged = false;		
     	InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
     	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
-    	rowList.addAll(messageEditText.getReplyMarkup().getKeyboard()) ; // try to add all message buttons 
+		InlineKeyboardMarkup inlineKeyboardMarkupEditMenu = new InlineKeyboardMarkup();
+		List<List<InlineKeyboardButton>> rowListEditMenu = new ArrayList<>();
+		rowListEditMenu.addAll(timeLineText.getReplyMarkup().getKeyboard());
+		if(messageEditText.getReplyMarkup() != null)
+    	    rowList.addAll(messageEditText.getReplyMarkup().getKeyboard()); // try to add all message buttons
+//		rowList.addAll(timeLineText.getReplyMarkup().getKeyboard()) ; // try to add all message buttons
 
     	boolean haveUrlButtons = rowList.stream()
                                        .flatMap(rl -> rl.stream())
                                        .anyMatch(ikb -> ikb.getUrl() != null);
     	
     	
-    	boolean haveDeleteUrlButton = rowList.stream()
+    	boolean haveDeleteUrlButton = rowListEditMenu.stream()
                                            .flatMap(rl -> rl.stream())
                                            .anyMatch(ikb -> ikb.getCallbackData() != null && ikb.getCallbackData().contains("deleteUrlButton"));
 
     	
     	int addUrlButtonIndex = 0;
     	
-    	for(List<InlineKeyboardButton> rows : rowList) {
+//    	for(List<InlineKeyboardButton> rows : rowList) {
+		for(List<InlineKeyboardButton> rows : rowListEditMenu) {
     		boolean catchYa = rows.stream().anyMatch(ikb -> ikb.getText().contains("Добавить кнопку"));
             if(catchYa) break;
 			addUrlButtonIndex++;
@@ -1117,25 +1202,29 @@ try {
     	
 
 //    	System.out.println("haveUrlButtons: " + haveUrlButtons + " deleteUrlButtonIndex: " + haveDeleteUrlButton + " addUrlButtonIndex: " + addUrlButtonIndex);
-    
+
         if(!haveDeleteUrlButton && haveUrlButtons) {
 			InlineKeyboardButton addDeleteURLButton = new InlineKeyboardButton();
 			addDeleteURLButton.setText("\uD83D\uDEAE Удалить кнопку");
 			addDeleteURLButton.setCallbackData("deleteUrlButton");
 			List<InlineKeyboardButton> addDeleteURLButtonRow = new ArrayList<>();
 			addDeleteURLButtonRow.add(addDeleteURLButton);
-			rowList.add((int)addUrlButtonIndex, addDeleteURLButtonRow);
+//			rowList.add((int)addUrlButtonIndex, addDeleteURLButtonRow);
+			rowListEditMenu.add((int)addUrlButtonIndex, addDeleteURLButtonRow);
 			isRowListChanged = true;
         }
 
 		inlineKeyboardMarkup.setKeyboard(rowList);
+		inlineKeyboardMarkupEditMenu.setKeyboard(rowListEditMenu);
     	
         EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
         emrm.setChatId(chatId);
-        emrm.setMessageId(messageEditText.getMessageId());
-        emrm.setReplyMarkup(inlineKeyboardMarkup);
+//        emrm.setMessageId(messageEditText.getMessageId());
+		emrm.setMessageId(timeLineText.getMessageId());
+        emrm.setReplyMarkup(inlineKeyboardMarkupEditMenu);
         
-        messageEditText.setReplyMarkup(inlineKeyboardMarkup); //
+//        messageEditText.setReplyMarkup(inlineKeyboardMarkup); //
+		timeLineText.setReplyMarkup(inlineKeyboardMarkupEditMenu); //
         
     	try {
     		if(isRowListChanged) {
@@ -1239,6 +1328,20 @@ try {
     }
     private void startMessage(String chatId) {
     	savedMessage = null;
+
+        channelName = null;
+        step = null;
+        messageDate = null;
+        messageTime = null;
+        messageEditText = null;
+        timeLineText = null;
+
+        if(editorModeOn) {
+            messageDeleter(chatId);
+            editorModeOn = false;
+            changingPostTime = false;
+        }
+
 //    	System.out.println("startMessage: " + savedMessage);
 //    	messageDeleter(chatId);
     	SendMessage message = new SendMessage();
@@ -1260,6 +1363,7 @@ try {
 		return inlineKeyboardMarkup;
     }
     private void settingsMenu(String chatId) {
+
     	try {
     	InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
     	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
@@ -1303,7 +1407,9 @@ try {
     private void whenToPost(String chatId) {
     	if(savedMessage == null)
     		return;
-    	
+
+        messageDeleter(chatId);
+
     	InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
     	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
 		InlineKeyboardButton atOnceKeyboardButton = new InlineKeyboardButton();
@@ -1393,7 +1499,7 @@ try {
 
     	LocalDateTime messageFileName = LocalDateTime.of(savedMessage.getDate(), savedMessage.getTime());
     	SendMessage message = new SendMessage();  
-    	File mFile = new File(dir+messageFileName.toString().replace(":", "."));
+    	File mFile = new File(dir + channelName + File.separator + messageFileName.toString().replace(":", "."));
     	
     	if(mFile.exists() && !rewriteSavedMessage) {
         	InlineKeyboardMarkup inlineKeyboardMarkup =new InlineKeyboardMarkup();
@@ -1425,8 +1531,8 @@ try {
     	String answerText = "";
     	if(mFile.exists() && rewriteSavedMessage && !editorModeOn) { // NOT EDITOR MODE
     		
-    		answerText = "Ok\nСообщение будет заменено на новое и будет опубликовано\n" + "*" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
-    			    + "в " + messageFileName.toLocalTime() + "*";
+    		answerText = "Ok\nСообщение будет заменено на новое и будет опубликовано в канале *" + savedMessage.getChannelName().replace("/","") + "* \n" + "*" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
+    			    + " в " + messageFileName.toLocalTime() + "*";
     		
  //   		System.out.println(answerText);
     		
@@ -1437,8 +1543,8 @@ try {
     	}
     	if(!mFile.exists() && !editorModeOn) {
     		
-    		answerText = "Ok\nСообщение будет опубликовано\n" + "*" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
-    			    + "в " + messageFileName.toLocalTime() + "*";
+    		answerText = "Ok\nСообщение будет опубликовано\nв канале: *" + savedMessage.getChannelName().replace("/","") + "* \n" + "*" + messageFileName.toLocalDate().format(DateTimeFormatter.ofPattern("dd\\.MM\\.uuuu"))
+    			    + " в " + messageFileName.toLocalTime() + "*";
     		
  //   		System.out.println(answerText);
     		
@@ -1447,7 +1553,7 @@ try {
 
     	}
 
-    	try(FileWriter fwr = new FileWriter(new File(dir+messageFileName.toString().replace(":", ".")), StandardCharsets.UTF_8)) {
+    	try(FileWriter fwr = new FileWriter(new File(dir + savedMessage.getChannelName() + messageFileName.toString().replace(":", ".")), StandardCharsets.UTF_8)) {
         	fwr.append(savedMessage.toString());
         	fwr.flush();
 
@@ -1455,10 +1561,12 @@ try {
     		e.printStackTrace();
     	} finally {
 
-
+            channelName = null;
     	    step = null;
     	    messageDate = null;
     	    messageTime = null;
+            messageEditText = null;
+            timeLineText = null;
     	    messageToEdit = messageFileName.toString().replace(":", ".");
     	    
         	if(editorModeOn) {
@@ -1474,14 +1582,15 @@ try {
     
     public void editorMode(Message mEd, String chatId,/* String messageToEdit,*/ boolean hasMedia) {
     	editorModeOn = true;
-    	messageEditText = mEd;
+//    	messageEditText = mEd;
     	
     	InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
     	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
     	List<List<InlineKeyboardButton>> newButtonsList = new ArrayList<>();
-    	rowList.addAll(messageEditText.getReplyMarkup().getKeyboard()) ; // try to add all message buttons  	
+//    	rowList.addAll(messageEditText.getReplyMarkup().getKeyboard()) ; // try to add all message buttons
+//		rowList.addAll(mEd.getReplyMarkup().getKeyboard()) ; // try to add all message buttons
+        rowList.addAll(timeLineText.getReplyMarkup().getKeyboard()) ; // try to add all message buttons
 
-		
 		InlineKeyboardButton addMediaButton = new InlineKeyboardButton();
 		addMediaButton.setText("🖼 Добавить медиа");
 		addMediaButton.setCallbackData("addMedia_"+messageToEdit);
@@ -1491,13 +1600,6 @@ try {
 	    	
 		if(hasMedia) {
 	    	
-/*			InlineKeyboardButton changeMediaButton = new InlineKeyboardButton();
-			changeMediaButton.setText("🖼 Заменить медиа");
-			changeMediaButton.setCallbackData("changeMedia_"+messageToEdit);
-			List<InlineKeyboardButton> changeMediaButtonRow = new ArrayList<>();
-			changeMediaButtonRow.add(changeMediaButton);
-			newButtonsList.add(changeMediaButtonRow);*/
-
 			InlineKeyboardButton clearMediaButton = new InlineKeyboardButton();
 			clearMediaButton.setText("🖼 Очистить медиа");
 			clearMediaButton.setCallbackData("clearMedia_"+messageToEdit);
@@ -1538,12 +1640,24 @@ try {
 		rowList.remove(rowList.size() - 2);
 		inlineKeyboardMarkup.setKeyboard(rowList);
     	
-        EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
+//		System.out.println("\n\n\n\n\n" + mEd.getText() + "\n\nKeyboard size: " + mEd.getReplyMarkup().getKeyboard().size());
+		
+      EditMessageReplyMarkup emrm = new EditMessageReplyMarkup();
         emrm.setChatId(chatId);
         emrm.setMessageId(mEd.getMessageId());
         emrm.setReplyMarkup(inlineKeyboardMarkup);
         
-        messageEditText.setReplyMarkup(inlineKeyboardMarkup); // Try to applicate changes to editMessageText
+//      messageEditText.setReplyMarkup(inlineKeyboardMarkup); // Try to applicate changes to editMessageText
+		timeLineText.setReplyMarkup(inlineKeyboardMarkup); // Try to applicate changes to editMessageText
+		
+		
+/*		SendMessage emrm = new SendMessage();
+		emrm.setChatId(chatId);
+        emrm.setReplyMarkup(inlineKeyboardMarkup);
+        emrm.setText(timeLineText.getText());
+        emrm.setEntities(timeLineText.getEntities());*/
+        
+		
         try {
         	execute(emrm);
         } catch (Exception e) {
@@ -1553,17 +1667,19 @@ try {
     }
     
     public Message showTheMessage(String chatId, String message2show) throws Exception {
+        System.out.println("ShowTheMessage method");
 		Scanner scannedMessage = new Scanner("");
     	Message resultMessage = null;
+//		System.out.println("message2show: -> " + message2show);
 		if(message2show.startsWith("/**************")) {
 			scannedMessage = new Scanner(message2show).useDelimiter("\\R");
 //			System.out.println(message2show);
 		} else {
-	        scannedMessage = new Scanner(new File(dir + message2show), "UTF-8").useDelimiter("\\R");
+	        scannedMessage = new Scanner(new File(dir + channelName + File.separator + message2show), "UTF-8").useDelimiter("\\R");
 	    	editorModeOn = true;
 	    	messageDeleter(chatId);
 	    	messageToEdit = message2show;
-	    	savedMessage = SimpleMessage.restore(dir, message2show);  // Restore publication from file to savedMessage variable
+	    	savedMessage = SimpleMessage.restore(dir + channelName + File.separator, message2show);  // Restore publication from file to savedMessage variable
 		}
 		message2show = savedMessage.getMessageFileName();
     	int photosAllTogather = 0;
@@ -1572,11 +1688,13 @@ try {
     	List<String> photoList = new ArrayList<>();
     	List<String> videoList = new ArrayList<>();
     	InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+		InlineKeyboardMarkup inlineKeyboardMarkupButtons = new InlineKeyboardMarkup();
     	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+		List<List<InlineKeyboardButton>> inlineKeyboardMarkupButtonsRowList = new ArrayList<>();
    	
 		StringBuilder text2send = new StringBuilder();
-		text2send.append("__Запланировано на *" + LocalDateTime.parse(savedMessage.getMessageFileName().replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString().replace(".", "\\.") + "*__" + System.lineSeparator() 
-		+ System.lineSeparator());
+//		text2send.append("__Запланировано на *" + LocalDateTime.parse(savedMessage.getMessageFileName().replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString().replace(".", "\\.") + "*__" + System.lineSeparator()
+//		+ System.lineSeparator());
 		String photo_id = "";
 		String stickerId = null;
 		
@@ -1586,7 +1704,10 @@ try {
 		while(scannedMessage.hasNext()) {
 			String nextStr = scannedMessage.next();
 			if(!nextStr.startsWith("/*") && !nextStr.endsWith("*/")) {
-				if(nextStr.contains("photo =")) 
+                if(nextStr.contains("toChannel ="))
+                    channelName = nextStr.substring(11);
+                
+				else if(nextStr.contains("photo ="))
 					photoList.add(nextStr.substring(8));
 			    			
 				else if(nextStr.contains("video =")) 
@@ -1603,7 +1724,8 @@ try {
 						reflectionButton.setCallbackData("smile");
 						reflactionButtonRow.add(reflectionButton);
 					}
-					rowList.add(reflactionButtonRow);
+//					rowList.add(reflactionButtonRow);
+					inlineKeyboardMarkupButtonsRowList.add(reflactionButtonRow);
 				}
 				
 				else if(nextStr.contains("ButtonTitle =")) {
@@ -1617,7 +1739,8 @@ try {
 					urlButton.setUrl(urlButtonHref);
 					List<InlineKeyboardButton> urlButtonRow = new ArrayList<>();
 					urlButtonRow.add(urlButton);
-					rowList.add(urlButtonRow);
+//					rowList.add(urlButtonRow);
+					inlineKeyboardMarkupButtonsRowList.add(urlButtonRow);
 				
 				}
 				
@@ -1625,8 +1748,9 @@ try {
 		    	    text2send.append(nextStr + System.lineSeparator());
 			}
 		}
-			
+		inlineKeyboardMarkupButtons.setKeyboard(inlineKeyboardMarkupButtonsRowList);
 		
+//		System.out.println(text2send.toString());
 		hasMedia = (photoList.isEmpty() && videoList.isEmpty() && stickerId == null) ? 0 : 1;
 
 		InlineKeyboardButton returnButton = new InlineKeyboardButton();
@@ -1668,10 +1792,12 @@ try {
 		if(stickerId != null) {
         	SendSticker message = new SendSticker();
             message.setChatId(chatId);
-        	message.setReplyMarkup(inlineKeyboardMarkup);
+//        	message.setReplyMarkup(inlineKeyboardMarkup);
+			message.setReplyMarkup(inlineKeyboardMarkupButtons);
         	message.setSticker(new InputFile(stickerId));
         	resultMessage = execute(message);
         	wwhMessage.add(resultMessage);
+			messageEditText = resultMessage;
 			return resultMessage;
 		}
 		
@@ -1680,7 +1806,8 @@ try {
         	message.setParseMode("MarkdownV2");
             message.setChatId(chatId);
             message.setText(text2send.toString());
-        	message.setReplyMarkup(inlineKeyboardMarkup);
+//        	message.setReplyMarkup(inlineKeyboardMarkup);
+			message.setReplyMarkup(inlineKeyboardMarkupButtons);
         	resultMessage = execute(message);
         	wwhMessage.add(resultMessage);
 
@@ -1691,7 +1818,8 @@ try {
             message.setChatId(chatId);
     	    message.setPhoto(new InputFile(photoList.get(0)));
             message.setCaption(text2send.toString());
-        	message.setReplyMarkup(inlineKeyboardMarkup);
+//        	message.setReplyMarkup(inlineKeyboardMarkup);
+			message.setReplyMarkup(inlineKeyboardMarkupButtons);
         	resultMessage = execute(message);
         	wwhMessage.add(resultMessage);
 
@@ -1702,23 +1830,31 @@ try {
             message.setChatId(chatId);
     	    message.setVideo(new InputFile(videoList.get(0)));
             message.setCaption(text2send.toString());
-        	message.setReplyMarkup(inlineKeyboardMarkup);
+//        	message.setReplyMarkup(inlineKeyboardMarkup);
+			message.setReplyMarkup(inlineKeyboardMarkupButtons);
         	resultMessage = execute(message);
         	wwhMessage.add(resultMessage);
         	
         } else if ((photosAllTogather + videosAllTogather) > 1) {
 
         	List<InputMedia> medias = new ArrayList<>();
-        	
+        	boolean weHaveCaption = false;
         	for(int i = 0; i < photoList.size(); i++) {
             	InputMedia media = (InputMedia) new InputMediaPhoto();
-
+/*				if(i == 0 && inlineKeyboardMarkupButtonsRowList.isEmpty()) {
+					media.setCaption(text2send.toString());
+					media.setParseMode("MarkdownV2");
+					weHaveCaption = true;
+				}*/
             	media.setMedia(photoList.get(i));
             	medias.add(media);
         	}
         	for(int i = 0; i < videoList.size(); i++) {
             	InputMedia media = (InputMedia) new InputMediaVideo();
-
+/*				if(i == 0 && !weHaveCaption && inlineKeyboardMarkupButtonsRowList.isEmpty()) {
+					media.setCaption(text2send.toString());
+					media.setParseMode("MarkdownV2");
+				}*/
             	media.setMedia(videoList.get(i));
             	medias.add(media);
         	}
@@ -1726,31 +1862,49 @@ try {
             SendMediaGroup message = new SendMediaGroup();
             message.setChatId(chatId);
             message.setMedias(medias);
+
             
             wwhMessage = execute(message);
-           
-        	SendMessage apendix = new SendMessage();
-        	apendix.setParseMode("MarkdownV2");
-        	apendix.setChatId(chatId);
-        	apendix.setText(text2send.toString());
-        	apendix.setReplyMarkup(inlineKeyboardMarkup);
-        	appendixMessage = execute(apendix);
-        	resultMessage = appendixMessage;
-			return resultMessage;
+
+//			if(inlineKeyboardMarkupButtons.getKeyboard().size() > 0) {
+				SendMessage apendix = new SendMessage();
+				apendix.setParseMode("MarkdownV2");
+				apendix.setChatId(chatId);
+				apendix.setText(text2send.toString());
+				apendix.setReplyMarkup(inlineKeyboardMarkupButtons);
+				appendixMessage = execute(apendix);
+				resultMessage = appendixMessage;
+//				messageEditText = resultMessage;
+
+			//}
         }
+
+		SendMessage tlm = new SendMessage();
+		tlm.setParseMode("MarkdownV2");
+		tlm.setChatId(chatId);
+		tlm.setText("__Запланировано на *" + LocalDateTime.parse(savedMessage.getMessageFileName().replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString().replace(".", "\\.") + "*__");
+		tlm.setReplyMarkup(inlineKeyboardMarkup);
+//		appendixMessage = execute(apendix);
+//		timeLineText = appendixMessage;
+		timeLineText = execute(tlm);
+
+		messageEditText = resultMessage;
         return resultMessage;
     }
     
     public List<String> getMessagesList() {
+
     	List<String> mNames = new ArrayList<>();
-    	try(Stream<Path> paths = Files.walk(Paths.get(dir))){
+    	try(Stream<Path> paths = Files.walk(Paths.get(dir + channelName))){
     		if(exceptDeletedMessage == null) {
         		mNames = paths.filter(Files::isRegularFile)
-  				      .collect(ArrayList::new, (al, p) -> al.add(p.getFileName().toString()), ArrayList::addAll);
+						 .filter(file -> file.getFileName().toString().matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}\\.\\d{2}(\\.\\d{2})*"))
+  				         .collect(ArrayList::new, (al, p) -> al.add(p.getFileName().toString()), ArrayList::addAll);
     		} else {
         		mNames = paths.filter(Files::isRegularFile)
-        				.filter(p -> !p.getFileName().toString().equals(exceptDeletedMessage))
-    				      .collect(ArrayList::new, (al, p) -> al.add(p.getFileName().toString()), ArrayList::addAll);
+						.filter(file -> file.getFileName().toString().matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}\\.\\d{2}(\\.\\d{2})*"))
+        				.filter(p -> p.compareTo(exceptDeletedMessage) != 0)
+						.collect(ArrayList::new, (al, p) -> al.add(p.getFileName().toString()), ArrayList::addAll);
     		}
     	}catch (Exception e) {
     		e.printStackTrace();
@@ -1770,6 +1924,7 @@ try {
     	ArrayList<String> mNames = (ArrayList<String>) getMessagesList(); 
     	List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
     	List<InlineKeyboardButton> abortButtonsRow = new ArrayList<>();
+        List<InlineKeyboardButton> returnButtonsRow = new ArrayList<>();
 
 
     	for(String mname : mNames) {
@@ -1786,6 +1941,11 @@ try {
 		abortButton.setCallbackData("abort_Message");
 		abortButtonsRow.add(abortButton);
 		rowList.add(abortButtonsRow);
+        InlineKeyboardButton returnButton = new InlineKeyboardButton();
+        returnButton.setText("↩️ Выбор канала");
+        returnButton.setCallbackData("c_choice");
+        returnButtonsRow.add(returnButton);
+        rowList.add(returnButtonsRow);
 		
     	inlineKeyboardMarkup.setKeyboard(rowList);
     	message.setReplyMarkup(inlineKeyboardMarkup);
@@ -1799,23 +1959,46 @@ try {
 
     	} catch (Exception e) {
     		e.printStackTrace();
-    	}
+    	} finally {
+ //           channelName = null;
+        }
     }
-    private void deleteMessage(String chatId, String message2delete, boolean silence) {
-    	new File(dir + message2delete).delete();
+    private void deleteMessage(String chatId, String message2delete, String cName, boolean silence) {
+//    	new File(dir + cName + File.separator + message2delete).delete();
+    	new File(dir + cName + File.separator + message2delete).delete();
     	if(!silence) {
     		String whatMessage = LocalDateTime.parse(message2delete.replace(".", ":")).format(DateTimeFormatter.ofPattern("dd.MM.yyyy в HH:mm:ss")).toString().replace(".", "\\.");
     	    keepDialog(new SendMessage(), chatId, "Сообщение,\nзапланированное " + whatMessage + ",\nне будет опубликовано \\- оно удалено \\!", true);
-    	    startMessage(chatId);
+//    	    startMessage(chatId);
     	}
     	
     }
+
+	private void warnSignCounter(String chatId, boolean caption) {
+		if(caption)
+			messageToDeleteId.add(keepDialog(new SendMessage(), chatId, "Длинна текста под медиа *не должна превышать 984 символов* \\!\nСообщение будет уменьшено до этого значения\n" +
+					"Вы можете отложить публикацию и воспользоваться режимом редактирования для изменения текста сообщения",true).getMessageId());
+		else
+			messageToDeleteId.add(keepDialog(new SendMessage(), chatId, "Длинна текста для медиагруппы или обычного тектового сообщения *не должна превышать 4056 символов* \\!\nСообщение будет уменьшено до этого значения\n" +
+					"Вы можете отложить публикацию и воспользоваться режимом редактирования для изменения текста сообщения",true).getMessageId());
+
+	}
+
     // userSaid passing through escapes method becomes larger. It's new length must be consider in MessageEntity list 
-    private String texter(String userSaid, List<MessageEntity> entities){
+    private String texter(String chatId, String userSaid, List<MessageEntity> entities){
     	// Special class Slasher used for tracking down warning symbols  (e.g #.-+*|{}[] etc)
     	// it has two methods
     	// One is getSlashOffsets() wich returns TreeSet containing offsets of those symbols
     	// Another one is getModifiedString() returning slash-modified userSaid string
+
+		if(savedMessage.mediaIsEmpty() && userSaid.length() > 4056)
+			warnSignCounter(chatId, false);
+/*		if(savedMessage.getMediaFileId().size() > 1 && userSaid.length() > 4056)
+			warnSignCounter(chatId, false);*/
+
+
+//		System.out.println("mediasize: " + savedMessage.getMediaFileId().size() + " usersaid length: " +  userSaid.length());
+
     	if(entities == null)
     		entities = new ArrayList<>();
     	Slasher sc = new Slasher(userSaid);
@@ -2025,7 +2208,7 @@ try {
 	}
 	
     private void whatWeHave(String chatId) throws Exception{
-    	
+     System.out.println("WhatWeHave method");
     	if(!wwhMessage.isEmpty()) {
     		for(Message wwhm : wwhMessage)
     		    messageDeleter(chatId, wwhm.getMessageId());
@@ -2033,9 +2216,13 @@ try {
     		wwhMessage.clear();
     	}
     	
-    	if(appendixMessage != null) {
+    	if(appendixMessage != null) {   		
     		messageDeleter(chatId, appendixMessage.getMessageId());
     		appendixMessage = null;
+    	}
+    	if(timeLineText != null) {
+    		messageDeleter(chatId, timeLineText.getMessageId());
+    		timeLineText = null;
     	}
     	
     	Map<String, String> media = savedMessage.getMediaFileId();
@@ -2189,5 +2376,32 @@ try {
         }
 
     }
+    
+    private void setChannelSelection(String chatId, String whatFor) {
+        SendMessage message = new SendMessage();
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowList = new ArrayList<>();
+        List<InlineKeyboardButton> abortButtonsRow = new ArrayList<>();
+
+
+        for(String сname : channels.split(" ")) {
+            InlineKeyboardButton inlineKeyboardButton = new InlineKeyboardButton();
+            inlineKeyboardButton.setText("\uD83D\uDCE3 " + сname/*.substring(1)*/);
+            inlineKeyboardButton.setCallbackData("\uD83D\uDCE3_" + сname/*.substring(1)*/ + "_" + whatFor);
+            List<InlineKeyboardButton> keyboardButtonsRow = new ArrayList<>();
+            keyboardButtonsRow.add(inlineKeyboardButton);
+            rowList.add(keyboardButtonsRow);
+        }
+
+        inlineKeyboardMarkup.setKeyboard(rowList);
+        message.setReplyMarkup(inlineKeyboardMarkup);
+        message.setChatId(chatId);
+        message.setText("Виберите канал:");
+        try {
+            messageToDeleteId.add(execute(message).getMessageId());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    } 
 
 }
